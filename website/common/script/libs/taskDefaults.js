@@ -53,6 +53,9 @@ export default function taskDefaults (task, user) {
       completed: false,
       collapseChecklist: false,
       checklist: [],
+      aiEnabled: false,
+      aiChatMessages: [],
+      aiAssessmentStatus: 'pending',
     });
   }
 
@@ -95,6 +98,12 @@ export default function taskDefaults (task, user) {
       daysOfMonth: [],
       weeksOfMonth: [],
       yesterDaily: true,
+    });
+  }
+
+  if (task.type === 'reward') {
+    defaults(task, {
+      requiredTasks: [],
     });
   }
 

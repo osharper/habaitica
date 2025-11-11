@@ -453,6 +453,30 @@ async function scoreTask (user, task, direction, req, res) {
     task.group.completedBy = {};
   }
 
+  // Check if reward is locked by required tasks
+  if (task.type === 'reward' && task.requiredTasks && task.requiredTasks.length > 0) {
+    const requiredTasks = await Tasks.Task.find({
+      _id: { $in: task.requiredTasks },
+      userId: user._id,
+    }).exec();
+
+    // Check if all required tasks are completed
+    const allCompleted = requiredTasks.every(reqTask => {
+      if (reqTask.type === 'daily') {
+        // For dailies, check if they're checked off (completed = true)
+        return reqTask.completed === true;
+      } if (reqTask.type === 'todo') {
+        // For todos, check if they're completed
+        return reqTask.completed === true;
+      }
+      return false;
+    });
+
+    if (!allCompleted) {
+      throw new NotAuthorized(res.t('rewardLockedByTasks', 'This reward is locked until you complete all required tasks.'));
+    }
+  }
+
   const wasCompleted = task.completed;
   const firstTask = !user.achievements.completedTask;
   let delta;

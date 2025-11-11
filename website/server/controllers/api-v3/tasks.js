@@ -1467,4 +1467,166 @@ api.deleteTask = {
   },
 };
 
+/**
+ * @api {post} /api/v3/tasks/:taskId/chat Send a chat message for AI assessment
+ * @apiName AddTaskChatMessage
+ * @apiGroup Task
+ *
+ * @apiParam (Path) {String} taskId The task _id or alias
+ * @apiParam (Body) {String} message The message content
+ * @apiParam (Body) {Array} [attachments] Optional array of attachment URLs
+ *
+ * @apiSuccess {Object} data The updated task with new chat message and AI response
+ */
+api.addTaskChatMessage = {
+  method: 'POST',
+  url: '/tasks/:taskId/chat',
+  middlewares: [authWithHeaders()],
+  async handler (req, res) {
+    req.checkParams('taskId', apiError('taskIdRequired')).notEmpty();
+    req.checkBody('message', 'Message is required').notEmpty();
+
+    const validationErrors = req.validationErrors();
+    if (validationErrors) throw validationErrors;
+
+    const { user } = res.locals;
+    const { taskId } = req.params;
+    const { message, attachments = [] } = req.body;
+
+    const task = await Tasks.Task.findByIdOrAlias(taskId, user._id);
+
+    if (!task) {
+      throw new NotFound(res.t('messageTaskNotFound'));
+    }
+
+    if (!task.aiEnabled) {
+      throw new BadRequest('AI assessment is not enabled for this task');
+    }
+
+    // Import AI assessment service
+    const { assessTaskCompletion } = await import('../../libs/ai/taskAssessment.js');
+
+    // Add user message to chat
+    const userChatMessage = {
+      role: 'user',
+      content: message,
+      timestamp: new Date(),
+      attachments,
+    };
+
+    if (!task.aiChatMessages) {
+      task.aiChatMessages = [];
+    }
+    task.aiChatMessages.push(userChatMessage);
+
+    // Get AI assessment
+    const previousMessages = task.aiChatMessages.slice(0, -1); // All messages except the one we just added
+    const aiResponse = await assessTaskCompletion(task, message, attachments, previousMessages);
+
+    // Add AI response to chat
+    const aiChatMessage = {
+      role: 'assistant',
+      content: aiResponse.feedback,
+      timestamp: new Date(),
+    };
+    task.aiChatMessages.push(aiChatMessage);
+
+    // Update task assessment status
+    task.aiAssessmentStatus = aiResponse.assessment;
+
+    // If approved, mark task as completed
+    if (aiResponse.assessment === 'approved' && (task.type === 'daily' || task.type === 'todo')) {
+      task.completed = true;
+      if (task.type === 'todo') {
+        task.dateCompleted = new Date();
+      }
+    }
+
+    await task.save();
+
+    res.respond(200, task);
+  },
+};
+
+/**
+ * @api {get} /api/v3/tasks/:taskId/chat Get chat messages for a task
+ * @apiName GetTaskChatMessages
+ * @apiGroup Task
+ *
+ * @apiParam (Path) {String} taskId The task _id or alias
+ *
+ * @apiSuccess {Array} data Array of chat messages
+ */
+api.getTaskChatMessages = {
+  method: 'GET',
+  url: '/tasks/:taskId/chat',
+  middlewares: [authWithHeaders()],
+  async handler (req, res) {
+    req.checkParams('taskId', apiError('taskIdRequired')).notEmpty();
+
+    const validationErrors = req.validationErrors();
+    if (validationErrors) throw validationErrors;
+
+    const { user } = res.locals;
+    const { taskId } = req.params;
+
+    const task = await Tasks.Task.findByIdOrAlias(taskId, user._id);
+
+    if (!task) {
+      throw new NotFound(res.t('messageTaskNotFound'));
+    }
+
+    res.respond(200, task.aiChatMessages || []);
+  },
+};
+
+/**
+ * @api {put} /api/v3/tasks/:taskId/ai-enable Enable or disable AI assessment for a task
+ * @apiName ToggleTaskAI
+ * @apiGroup Task
+ *
+ * @apiParam (Path) {String} taskId The task _id or alias
+ * @apiParam (Body) {Boolean} aiEnabled Whether AI assessment should be enabled
+ *
+ * @apiSuccess {Object} data The updated task
+ */
+api.toggleTaskAI = {
+  method: 'PUT',
+  url: '/tasks/:taskId/ai-enable',
+  middlewares: [authWithHeaders()],
+  async handler (req, res) {
+    req.checkParams('taskId', apiError('taskIdRequired')).notEmpty();
+    req.checkBody('aiEnabled', 'aiEnabled is required').notEmpty().isBoolean();
+
+    const validationErrors = req.validationErrors();
+    if (validationErrors) throw validationErrors;
+
+    const { user } = res.locals;
+    const { taskId } = req.params;
+    const { aiEnabled } = req.body;
+
+    const task = await Tasks.Task.findByIdOrAlias(taskId, user._id);
+
+    if (!task) {
+      throw new NotFound(res.t('messageTaskNotFound'));
+    }
+
+    if (task.type === 'reward' || task.type === 'habit') {
+      throw new BadRequest('AI assessment is only available for dailies and todos');
+    }
+
+    task.aiEnabled = aiEnabled;
+
+    // Reset chat if disabling
+    if (!aiEnabled) {
+      task.aiChatMessages = [];
+      task.aiAssessmentStatus = 'pending';
+    }
+
+    await task.save();
+
+    res.respond(200, task);
+  },
+};
+
 export default api;

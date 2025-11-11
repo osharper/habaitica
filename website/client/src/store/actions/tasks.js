@@ -258,3 +258,38 @@ export async function moveGroupTask (store, payload) {
   const response = await axios.post(`/api/v4/group-tasks/${payload.taskId}/move/to/${payload.position}`);
   return response.data.data;
 }
+
+// AI Assessment Actions
+export async function sendTaskChatMessage (store, { taskId, message, attachments = [] }) {
+  const response = await axios.post(`/api/v3/tasks/${taskId}/chat`, {
+    message,
+    attachments,
+  });
+
+  // Update the task in store with the new chat messages
+  const task = store.state.tasks.data[`${response.data.data.type}s`].find(t => t._id === taskId);
+  if (task) {
+    Object.assign(task, response.data.data);
+  }
+
+  return response.data.data;
+}
+
+export async function getTaskChatMessages (store, taskId) {
+  const response = await axios.get(`/api/v3/tasks/${taskId}/chat`);
+  return response.data.data;
+}
+
+export async function toggleTaskAI (store, { taskId, aiEnabled }) {
+  const response = await axios.put(`/api/v3/tasks/${taskId}/ai-enable`, {
+    aiEnabled,
+  });
+
+  // Update the task in store
+  const task = store.state.tasks.data[`${response.data.data.type}s`].find(t => t._id === taskId);
+  if (task) {
+    Object.assign(task, response.data.data);
+  }
+
+  return response.data.data;
+}

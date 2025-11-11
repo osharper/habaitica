@@ -149,6 +149,25 @@ export const TaskSchema = new Schema({
 
   reminders: [reminderSchema],
 
+  // AI Assessment fields
+  aiEnabled: { $type: Boolean, default: false }, // Enable AI assessment for this task
+  aiChatMessages: [{
+    $type: {
+      role: { $type: String, enum: ['user', 'assistant'], required: true },
+      content: { $type: String, required: true },
+      timestamp: { $type: Date, default: Date.now },
+      attachments: [{
+        $type: String, // URLs to uploaded images or files
+      }],
+    },
+    _id: false,
+  }],
+  aiAssessmentStatus: {
+    $type: String,
+    enum: ['pending', 'approved', 'rejected', 'needs_revision'],
+    default: 'pending',
+  },
+
   byHabitica: { $type: Boolean, default: false }, // Flag of Tasks that were created by Habitica
 }, _.defaults({
   minimize: false, // So empty objects are returned
@@ -414,5 +433,10 @@ export const TodoSchema = new Schema(_.defaults({
 }, dailyTodoSchema()), subDiscriminatorOptions);
 export const todo = Task.discriminator('todo', TodoSchema);
 
-export const RewardSchema = new Schema({}, subDiscriminatorOptions);
+export const RewardSchema = new Schema({
+  requiredTasks: [{
+    type: String,
+    validate: [v => validator.isUUID(v), 'Invalid task UUID.'],
+  }],
+}, subDiscriminatorOptions);
 export const reward = Task.discriminator('reward', RewardSchema);
