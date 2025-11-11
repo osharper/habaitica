@@ -398,6 +398,64 @@ async function handleTeamTask (task, delta, direction) {
 }
 
 /**
+ * Check which rewards were just unlocked by completing a task
+ * @param {String} userId - The user's ID
+ * @param {String} completedTaskId - The task that was just completed
+ * @returns {Array} Array of reward objects that are now unlocked
+ */
+async function checkUnlockedRewards (userId, completedTaskId) {
+  // Find all rewards for this user that have required tasks
+  const rewardsWithRequirements = await Tasks.Task.find({
+    userId,
+    type: 'reward',
+    requiredTasks: { $exists: true, $ne: [] },
+  }).exec();
+
+  if (!rewardsWithRequirements || rewardsWithRequirements.length === 0) {
+    return [];
+  }
+
+  const unlockedRewards = [];
+
+  // Get all user's tasks once to avoid repeated queries
+  const allUserTasks = await Tasks.Task.find({
+    userId,
+    type: { $in: ['todo', 'daily'] },
+  }).exec();
+
+  // Create a map for quick lookup
+  const taskCompletionMap = new Map();
+  allUserTasks.forEach(task => {
+    taskCompletionMap.set(task._id.toString(), task.completed === true);
+  });
+
+  // Check each reward to see if it's now unlocked
+  for (const reward of rewardsWithRequirements) {
+    // Check if all required tasks are completed
+    const allRequiredCompleted = reward.requiredTasks.every(reqTaskId => {
+      const isCompleted = taskCompletionMap.get(reqTaskId.toString());
+      return isCompleted === true;
+    });
+
+    if (allRequiredCompleted) {
+      // Check if this reward was previously locked
+      // (at least one of its required tasks was the one just completed)
+      if (reward.requiredTasks.some(reqId => reqId.toString() === completedTaskId.toString())) {
+        unlockedRewards.push({
+          _id: reward._id,
+          text: reward.text,
+          notes: reward.notes,
+          value: reward.value,
+          requiredTasks: reward.requiredTasks,
+        });
+      }
+    }
+  }
+
+  return unlockedRewards;
+}
+
+/**
  * Scores a task.
  * @param user the user that is making the operation
  * @param task The task to score
@@ -552,12 +610,24 @@ async function scoreTask (user, task, direction, req, res) {
     });
   }
 
+  // Check for newly unlocked rewards when completing a task
+  let unlockedRewards = [];
+  if (direction === 'up' && task.completed && (task.type === 'todo' || task.type === 'daily')) {
+    try {
+      unlockedRewards = await checkUnlockedRewards(user._id, task._id);
+    } catch (error) {
+      logger.error(error, 'Error checking unlocked rewards');
+      // Don't fail the request if reward checking fails
+    }
+  }
+
   return {
     task,
     delta,
     direction,
     pullTask,
     pushTask,
+    unlockedRewards,
     // clone user._tmp so that it's not overwritten by other score operations
     // when using the bulk scoring API
     _tmp: cloneDeep(user._tmp),
@@ -646,7 +716,12 @@ export async function scoreTasks (user, taskScorings, req, res) {
     handleChallengeTask(data.task, data.delta, data.direction);
     handleTeamTask(data.task, data.delta, data.direction);
 
-    return { id: data.task._id, delta: data.delta, _tmp: data._tmp };
+    return {
+      id: data.task._id,
+      delta: data.delta,
+      _tmp: data._tmp,
+      unlockedRewards: data.unlockedRewards || [],
+    };
   });
 }
 

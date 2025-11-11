@@ -773,6 +773,7 @@ api.scoreTask = {
     const resJsonData = assign({
       delta: taskResponse.delta,
       _tmp: user._tmp,
+      unlockedRewards: taskResponse.unlockedRewards || [],
     }, userStats);
 
     res.respond(200, resJsonData);
