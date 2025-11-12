@@ -15,6 +15,9 @@
       :task="editingTask"
       @cancel="cancelTaskModal()"
     />
+    <required-tasks-modal />
+    <reward-unlocked-modal />
+    <ai-chat-modal />
     <div class="col-12">
       <div class="row tasks-navigation">
         <div class="col-12 col-md-4 offset-md-4">
@@ -393,6 +396,9 @@ import TaskModal from './taskModal';
 import TaskSummary from './taskSummary';
 import spells from './spells';
 import markdown from '@/directives/markdown';
+import RequiredTasksModal from './requiredTasksModal';
+import RewardUnlockedModal from './rewardUnlockedModal';
+import AiChatModal from './aiChatModal';
 
 import positiveIcon from '@/assets/svg/positive.svg?raw';
 import filterIcon from '@/assets/svg/filter.svg?raw';
@@ -414,6 +420,9 @@ export default {
     spells,
     brokenTaskModal,
     draggable,
+    RequiredTasksModal,
+    RewardUnlockedModal,
+    AiChatModal,
   },
   directives: {
     markdown,

@@ -240,6 +240,27 @@
               ></label>
             </div>
           </div>
+          <!-- Reward Lock Info -->
+          <div
+            v-if="task.type === 'reward' && isRewardLocked"
+            class="reward-lock-info d-flex align-items-center px-2 py-2"
+          >
+            <div
+              class="svg-icon lock-icon-info mr-2"
+              v-html="icons.lock"
+            ></div>
+            <div class="flex-grow-1">
+              <div class="lock-text">
+                {{ $t('rewardLockedMessage', { count: incompletedRequiredTasks.length }) }}
+              </div>
+              <button
+                class="btn btn-sm btn-secondary mt-1"
+                @click="showRequiredTasks"
+              >
+                {{ $t('viewRequiredTasks') }}
+              </button>
+            </div>
+          </div>
           <div class="icons small-text d-flex align-items-center">
             <div
               v-if="task.type === 'todo' && task.date"
@@ -254,6 +275,33 @@
               <span>{{ formatDueDate() }}</span>
             </div>
             <div class="icons-right d-flex justify-content-end">
+              <!-- AI Status Badge and Submit Button -->
+              <div
+                v-if="(task.type === 'todo' || task.type === 'daily') && task.aiEnabled"
+                class="d-flex align-items-center ai-section"
+              >
+                <span
+                  v-b-tooltip.hover.bottom="$t(`aiStatus_${task.aiAssessmentStatus}`)"
+                  class="badge ai-status-badge mr-2"
+                  :class="aiStatusClass"
+                >
+                  <div
+                    class="svg-icon ai-icon-badge"
+                    v-html="icons.ai"
+                  ></div>
+                  {{ $t(`aiStatus_${task.aiAssessmentStatus}`) }}
+                </span>
+                <button
+                  class="btn btn-sm btn-primary ai-chat-button"
+                  @click.stop="openAIChat"
+                >
+                  <div
+                    class="svg-icon chat-icon-button"
+                    v-html="icons.chat"
+                  ></div>
+                  {{ $t('submitProof') }}
+                </button>
+              </div>
               <div
                 v-if="showStreak"
                 class="d-flex align-items-center"
@@ -907,6 +955,68 @@
       }
     }
   }
+
+  // Reward Lock Info Styles
+  .reward-lock-info {
+    background-color: $orange-50;
+    border-radius: 4px;
+    margin: 8px;
+    border: 1px solid $orange-100;
+
+    .lock-icon-info {
+      width: 20px;
+      height: 20px;
+      color: $orange-100;
+    }
+
+    .lock-text {
+      font-size: 12px;
+      color: $gray-50;
+      font-weight: 500;
+    }
+
+    .btn-secondary {
+      font-size: 11px;
+      padding: 2px 8px;
+    }
+  }
+
+  // AI Status and Chat Styles
+  .ai-section {
+    margin-left: 8px;
+
+    .ai-status-badge {
+      display: flex;
+      align-items: center;
+      font-size: 11px;
+      padding: 4px 8px;
+      font-weight: 600;
+
+      .ai-icon-badge {
+        width: 12px;
+        height: 12px;
+        margin-right: 4px;
+      }
+    }
+
+    .ai-chat-button {
+      display: flex;
+      align-items: center;
+      font-size: 11px;
+      padding: 4px 10px;
+      white-space: nowrap;
+
+      .chat-icon-button {
+        width: 12px;
+        height: 12px;
+        margin-right: 4px;
+      }
+
+      &:hover {
+        opacity: 0.9;
+      }
+    }
+  }
 </style>
 <!-- eslint-enable max-len -->
 <!-- eslint-disable-next-line vue/component-tags-order -->
@@ -932,6 +1042,8 @@ import deleteIcon from '@/assets/svg/delete.svg?raw';
 import checklistIcon from '@/assets/svg/checklist.svg?raw';
 import lockIcon from '@/assets/svg/lock.svg?raw';
 import menuIcon from '@/assets/svg/menu.svg?raw';
+import chatIcon from '@/assets/svg/chat.svg?raw';
+import aiIcon from '@/assets/svg/ai.svg?raw';
 import markdownDirective from '@/directives/markdown';
 import scoreTask from '@/mixins/scoreTask';
 import sync from '@/mixins/sync';
@@ -979,6 +1091,8 @@ export default {
         bottom: bottomIcon,
         menu: menuIcon,
         lock: lockIcon,
+        chat: chatIcon,
+        ai: aiIcon,
       }),
     };
   },
@@ -1093,6 +1207,11 @@ export default {
       return this.task.completed;
     },
     showTaskLockIcon () {
+      // Check for reward lock first
+      if (this.task.type === 'reward' && this.isRewardLocked) {
+        return true;
+      }
+
       if (this.isUser) return false;
       if (this.isGroupTask) {
         if (this.task.completed) {
@@ -1116,6 +1235,51 @@ export default {
         }
       }
       return true;
+    },
+    isRewardLocked () {
+      if (this.task.type !== 'reward' || !this.task.requiredTasks || this.task.requiredTasks.length === 0) {
+        return false;
+      }
+      return this.incompletedRequiredTasks.length > 0;
+    },
+    incompletedRequiredTasks () {
+      if (!this.task.requiredTasks || this.task.requiredTasks.length === 0) {
+        return [];
+      }
+
+      const allTasks = [
+        ...(this.$store.state.tasks?.data?.dailys || []),
+        ...(this.$store.state.tasks?.data?.todos || []),
+      ];
+
+      return this.task.requiredTasks.filter(requiredId => {
+        const reqTask = allTasks.find(t => t._id === requiredId);
+        return reqTask && !reqTask.completed;
+      });
+    },
+    completedRequiredTasks () {
+      if (!this.task.requiredTasks || this.task.requiredTasks.length === 0) {
+        return [];
+      }
+
+      const allTasks = [
+        ...(this.$store.state.tasks?.data?.dailys || []),
+        ...(this.$store.state.tasks?.data?.todos || []),
+      ];
+
+      return this.task.requiredTasks.filter(requiredId => {
+        const reqTask = allTasks.find(t => t._id === requiredId);
+        return reqTask && reqTask.completed;
+      });
+    },
+    aiStatusClass () {
+      const statusMap = {
+        pending: 'badge-secondary',
+        approved: 'badge-success',
+        rejected: 'badge-danger',
+        needs_revision: 'badge-warning',
+      };
+      return statusMap[this.task.aiAssessmentStatus] || 'badge-secondary';
     },
   },
   methods: {
@@ -1182,6 +1346,18 @@ export default {
       if (!window.confirm(this.$t('sureDeleteType', { type }))) return; // eslint-disable-line no-alert
       this.destroyTask(this.task);
       this.$emit('taskDestroyed', this.task);
+    },
+    showRequiredTasks () {
+      this.$root.$emit('bv::show::modal', 'required-tasks-modal');
+      this.$root.$emit('show-required-tasks', {
+        reward: this.task,
+        incompleted: this.incompletedRequiredTasks,
+        completed: this.completedRequiredTasks,
+      });
+    },
+    openAIChat () {
+      this.$root.$emit('bv::show::modal', 'task-ai-chat-modal');
+      this.$root.$emit('open-ai-chat', this.task);
     },
     castEnd (e, task) {
       setTimeout(() => this.$root.$emit('castEnd', task, 'task', e), 0);

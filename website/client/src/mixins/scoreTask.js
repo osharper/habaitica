@@ -56,6 +56,11 @@ export default {
 
       this.handleTaskScoreNotifications(response.data.data._tmp || {});
 
+      // Handle unlocked rewards
+      if (response.data.data.unlockedRewards && response.data.data.unlockedRewards.length > 0) {
+        this.$root.$emit('show-unlocked-rewards', response.data.data.unlockedRewards);
+      }
+
       const tasksScoredCount = getLocalSetting(CONSTANTS.keyConstants.TASKS_SCORED_COUNT);
       if (!tasksScoredCount || tasksScoredCount < 2) {
         Analytics.track({
