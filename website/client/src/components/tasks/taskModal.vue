@@ -134,6 +134,56 @@
               >
             </div>
           </div>
+          <div class="form-group mt-3">
+            <label class="mb-1">
+              {{ $t('requiredTasks') }}
+            </label>
+            <p class="small text-muted mb-2">
+              {{ $t('requiredTasksDescription') }}
+            </p>
+            <div class="required-tasks-selector">
+              <div
+                v-for="taskType in ['dailys', 'todos']"
+                :key="taskType"
+                class="task-type-group mb-3"
+              >
+                <h6 class="text-muted mb-2">
+                  {{ $t(taskType) }}
+                </h6>
+                <div
+                  v-if="availableTasksForLocking[taskType].length === 0"
+                  class="small text-muted"
+                >
+                  {{ $t('noTasksAvailable') }}
+                </div>
+                <div
+                  v-for="availableTask in availableTasksForLocking[taskType]"
+                  :key="availableTask._id"
+                  class="custom-control custom-checkbox mb-2"
+                >
+                  <input
+                    :id="`req-task-${availableTask._id}`"
+                    v-model="task.requiredTasks"
+                    type="checkbox"
+                    class="custom-control-input"
+                    :value="availableTask._id"
+                  >
+                  <label
+                    class="custom-control-label"
+                    :for="`req-task-${availableTask._id}`"
+                  >
+                    {{ availableTask.text }}
+                    <span
+                      v-if="availableTask.completed"
+                      class="badge badge-success ml-2"
+                    >
+                      {{ $t('completed') }}
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div
           v-if="checklistEnabled"
@@ -356,6 +406,53 @@
                 class="custom-control-label"
                 for="repeat-dayOfWeek"
               >{{ $t('dayOfWeek') }}</label>
+            </div>
+          </div>
+        </div>
+        <div
+          v-if="(task.type === 'todo' || task.type === 'daily') && !groupId && !challengeId"
+          class="option mt-3"
+        >
+          <div class="form-group">
+            <div class="custom-control custom-switch">
+              <input
+                id="ai-enabled-switch"
+                v-model="task.aiEnabled"
+                type="checkbox"
+                class="custom-control-input"
+              >
+              <label
+                class="custom-control-label"
+                for="ai-enabled-switch"
+              >
+                <strong>{{ $t('enableAIAssessment') }}</strong>
+              </label>
+            </div>
+            <div
+              v-if="task.aiEnabled || true"
+              class="ai-assessment-info mt-2"
+            >
+              <div class="d-flex align-items-start">
+                <div class="svg-icon ai-icon mr-2" v-html="icons.ai"></div>
+                <div>
+                  <p class="small text-muted mb-1">
+                    {{ $t('aiAssessmentDescription') }}
+                  </p>
+                  <ul class="small text-muted mb-0 pl-3">
+                    <li>{{ $t('aiAssessmentBenefit1') }}</li>
+                    <li>{{ $t('aiAssessmentBenefit2') }}</li>
+                    <li>{{ $t('aiAssessmentBenefit3') }}</li>
+                  </ul>
+                </div>
+              </div>
+              <div
+                v-if="task.aiEnabled"
+                class="alert alert-info mt-2 mb-0 py-2 px-3"
+              >
+                <small>
+                  <strong>{{ $t('note') }}:</strong> {{ $t('aiAssessmentNote') }}
+                </small>
+              </div>
             </div>
           </div>
         </div>
@@ -1024,6 +1121,52 @@
     color: $gray-200;
   }
 
+  .required-tasks-selector {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: #fafafa;
+
+    .task-type-group {
+      h6 {
+        font-weight: 600;
+        text-transform: capitalize;
+        font-size: 12px;
+      }
+    }
+
+    .custom-control-label {
+      cursor: pointer;
+      user-select: none;
+      font-size: 14px;
+    }
+  }
+
+  .ai-assessment-info {
+    padding: 0.75rem;
+    background: #f0f7ff;
+    border-radius: 4px;
+    border-left: 3px solid #4299e1;
+
+    .ai-icon {
+      width: 24px;
+      height: 24px;
+      color: #4299e1;
+      flex-shrink: 0;
+    }
+
+    ul {
+      list-style-type: disc;
+      margin-bottom: 0;
+    }
+
+    .alert-info {
+      font-size: 12px;
+    }
+  }
+
 </style>
 
 <script>
@@ -1049,6 +1192,7 @@ import goldIcon from '@/assets/svg/gold.svg?raw';
 import chevronIcon from '@/assets/svg/chevron.svg?raw';
 import calendarIcon from '@/assets/svg/calendar.svg?raw';
 import gripIcon from '@/assets/svg/grip.svg?raw';
+import aiIcon from '@/assets/svg/ai.svg?raw';
 import InformationIcon from '@/components/ui/informationIcon.vue';
 
 export default {
@@ -1081,6 +1225,7 @@ export default {
         streak: streakIcon,
         calendar: calendarIcon,
         grip: gripIcon,
+        ai: aiIcon,
       }),
       members: [],
       membersNameAndId: [],
@@ -1187,6 +1332,18 @@ export default {
     selectedTags () {
       return this.getTagsFor(this.task);
     },
+    availableTasksForLocking () {
+      if (!this.$store.state.tasks || !this.$store.state.tasks.data) {
+        return { dailys: [], todos: [] };
+      }
+
+      return {
+        dailys: (this.$store.state.tasks.data.dailys || [])
+          .filter(t => t._id !== this.task._id),
+        todos: (this.$store.state.tasks.data.todos || [])
+          .filter(t => t._id !== this.task._id && !t.completed),
+      };
+    },
   },
   watch: {
     task () {
@@ -1204,6 +1361,11 @@ export default {
       const groupResponse = await axios.get(`/api/v4/groups/${this.groupId}`);
       this.managers = Object.keys(groupResponse.data.data.managers);
       this.managers.push(groupResponse.data.data.leader._id);
+    }
+
+    // Initialize requiredTasks for rewards if not present
+    if (this.task && this.task.type === 'reward' && !this.task.requiredTasks) {
+      this.$set(this.task, 'requiredTasks', []);
     }
   },
   methods: {
