@@ -16,9 +16,20 @@ This feature extends Habitica rewards with configurable actions that execute whe
 
 ### Three Action Types
 
-1. **Client App Actions** - Real-time actions executed in user's connected client applications
-2. **Webhooks** - HTTP requests sent to external URLs when reward is purchased
-3. **API Polling** - External systems poll Habitica API to check if reward was purchased
+1. **Client App Actions** - Push notifications sent to native mobile apps (iOS/Android) that execute actions with OS-level permissions (screen time control, device unlocking)
+2. **Webhooks** - HTTP requests sent to external URLs when reward is purchased (executed server-side)
+3. **API Polling** - External systems poll Habitica API to check if reward was purchased (e.g., routers, custom services)
+
+### Execution Model
+
+**IMPORTANT**: Actions are executed differently depending on the client:
+
+- **Native Mobile Apps (iOS/Android)**: Receive push notifications with action payload and execute actions with OS permissions (screen time management, device controls)
+- **Web Client**: Displays informational notifications only - does NOT execute actions (web browsers lack OS-level permissions for device control)
+- **Webhooks**: Execute immediately on server when reward is purchased
+- **API Polling**: External systems detect purchase and execute their own logic
+
+**Multiple Actions**: A single reward can trigger multiple action types simultaneously (e.g., webhook + client action + API polling)
 
 ---
 
@@ -332,31 +343,41 @@ function substituteVariables(obj, context) {
 
 **Service:** `website/server/libs/rewards/clientActionBroadcaster.js`
 
-Uses existing WebSocket/Pusher infrastructure to broadcast real-time events:
+Uses existing Firebase Cloud Messaging (FCM) and Apple Push Notification (APN) infrastructure to send push notifications to native mobile apps:
 
 ```javascript
+import { sendNotification } from '../pushNotifications';
+
 export async function broadcastClientAction(reward, user) {
   const { clientAction } = reward.actionConfig;
 
-  if (!clientAction) return;
+  if (!clientAction) return null;
 
   const actionPayload = {
-    type: 'reward:action',
+    rewardId: reward._id,
+    rewardName: reward.text,
+    actionType: 'client_action',
     action: clientAction.action,
     duration: clientAction.duration,
     devices: clientAction.devices,
     customPayload: clientAction.customPayload,
-    rewardId: reward._id,
-    rewardName: reward.text,
     timestamp: new Date().toISOString(),
   };
 
-  // Broadcast to all user's connected clients
-  await pusher.trigger(`private-user-${user._id}`, 'reward:action', actionPayload);
+  // Send push notification to all user's registered mobile devices (iOS + Android)
+  await sendNotification(user, {
+    title: 'Reward Claimed',
+    message: `${reward.text} - Action triggered`,
+    identifier: 'rewardAction',
+    category: 'rewardAction',
+    payload: actionPayload,
+  });
 
   return actionPayload;
 }
 ```
+
+**Note**: This sends push notifications ONLY to native mobile apps (iOS/Android). The web client receives action data in the API response for display purposes only.
 
 ### Updated scoreTask Function
 
@@ -898,68 +919,66 @@ async handleRewardPurchase(response) {
 }
 ```
 
-### 3.4 Client-Side Action Handler
+### 3.4 Web Client Notification Display
 
-Create new file: `website/client/src/libs/rewardActionHandler.js`
+**File:** `website/client/src/mixins/scoreTask.js`
+
+The web client ONLY displays informational notifications about executed actions. It does NOT execute the actions themselves.
 
 ```javascript
-export class RewardActionHandler {
-  constructor(store) {
-    this.store = store;
-    this.setupListeners();
+async handleRewardAction(rewardAction) {
+  const { executed, actionType, webhookStatus, clientAction, apiPolling } = rewardAction;
+
+  if (!executed) return;
+
+  // Display notification for client actions (executed on mobile apps)
+  if (clientAction) {
+    const actionMessages = {
+      unblock_device: this.$t('deviceUnlockedNotification', {
+        devices: clientAction.devices.join(', '),
+        duration: clientAction.duration
+      }),
+      notification: this.$t('notificationTriggered'),
+      custom: this.$t('customActionTriggered'),
+    };
+
+    this.$store.dispatch('snackbars:add', {
+      title: this.$t('rewardActionExecuted'),
+      text: actionMessages[clientAction.action] || this.$t('actionTriggered'),
+      type: 'info',
+      timeout: 5000,
+    });
   }
 
-  setupListeners() {
-    // Listen for real-time reward action events
-    this.store.state.socket?.on('reward:action', this.handleRewardAction.bind(this));
-  }
-
-  async handleRewardAction(payload) {
-    const { action, duration, devices, customPayload } = payload;
-
-    switch (action) {
-      case 'unblock_device':
-        await this.handleUnblockDevice(devices, duration);
-        break;
-      case 'notification':
-        this.showNotification(customPayload);
-        break;
-      case 'custom':
-        await this.handleCustomAction(customPayload);
-        break;
+  // Display notification for webhook execution
+  if (webhookStatus) {
+    if (webhookStatus.success) {
+      this.$store.dispatch('snackbars:add', {
+        title: this.$t('webhookExecuted'),
+        text: this.$t('webhookExecutedSuccessfully'),
+        type: 'success',
+      });
+    } else {
+      this.$store.dispatch('snackbars:add', {
+        title: this.$t('webhookFailed'),
+        text: this.$t('webhookExecutionFailed', { error: webhookStatus.error }),
+        type: 'error',
+      });
     }
   }
 
-  async handleUnblockDevice(devices, duration) {
-    // Emit event for device management integration
-    window.dispatchEvent(new CustomEvent('habitica:unblock-devices', {
-      detail: { devices, duration }
-    }));
-
-    // Show notification
-    this.store.dispatch('snackbars:add', {
-      title: 'Device Unblocked',
-      text: `${devices.join(', ')} unlocked for ${duration} minutes`,
-      type: 'success',
-    });
-  }
-
-  showNotification(customPayload) {
-    this.store.dispatch('snackbars:add', {
-      title: customPayload.title || 'Reward Claimed',
-      text: customPayload.message || 'Your reward action was triggered!',
+  // Display notification for API polling
+  if (apiPolling && apiPolling.enabled) {
+    this.$store.dispatch('snackbars:add', {
+      title: this.$t('rewardPurchased'),
+      text: this.$t('apiPollingUpdated'),
       type: 'info',
     });
   }
-
-  async handleCustomAction(customPayload) {
-    // Emit custom event for external integrations
-    window.dispatchEvent(new CustomEvent('habitica:custom-reward-action', {
-      detail: customPayload
-    }));
-  }
 }
 ```
+
+**IMPORTANT**: The web client cannot execute device control actions (unblock_device, etc.) because web browsers lack the necessary OS-level permissions. These actions are executed by native mobile apps (iOS/Android) which receive push notifications with the action payload.
 
 ---
 
@@ -976,7 +995,7 @@ Add to `website/common/locales/en/tasks.json`:
   "webhook": "Webhook",
   "apiPolling": "API Polling",
   "multipleActions": "Multiple Actions",
-  "clientActionDescription": "Execute actions in your connected client applications (e.g., unblock devices for screen time control)",
+  "clientActionDescription": "Send actions to your native mobile apps (iOS/Android) with OS-level permissions for device control and screen time management",
   "webhookDescription": "Send HTTP request to external URL when reward is purchased (e.g., Home Assistant, IFTTT)",
   "apiPollingDescription": "Allow external systems to poll an API endpoint to check if reward was purchased (e.g., OpenWrt router)",
   "multipleActionsDescription": "Combine multiple action types for this reward",
@@ -1023,8 +1042,16 @@ Add to `website/common/locales/en/tasks.json`:
   "hasMultipleActions": "Has multiple actions",
   "hasAction": "Has action",
   "webhookExecutedSuccessfully": "Webhook executed successfully",
+  "webhookExecuted": "Webhook Executed",
+  "webhookFailed": "Webhook Failed",
   "clientActionTriggered": "Client action triggered",
-  "apiPollingUpdated": "API polling endpoint updated"
+  "apiPollingUpdated": "API polling endpoint updated",
+  "rewardActionExecuted": "Reward Action Executed",
+  "actionTriggered": "Action triggered on your mobile devices",
+  "deviceUnlockedNotification": "{devices} unlocked for {duration} minutes on your mobile devices",
+  "notificationTriggered": "Notification sent to your mobile devices",
+  "customActionTriggered": "Custom action sent to your mobile devices",
+  "rewardPurchased": "Reward Purchased"
 }
 ```
 
@@ -1088,8 +1115,9 @@ Add to `website/common/locales/en/tasks.json`:
    - Test rate limiting
 
 3. **Client Action Broadcasting**:
-   - Test Pusher event broadcasting
+   - Test push notification sending (FCM + APN)
    - Test payload structure
+   - Verify notifications reach registered mobile devices
 
 4. **Purchase Tracking**:
    - Test lastPurchased update

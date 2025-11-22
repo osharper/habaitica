@@ -974,18 +974,7 @@ fi`;
 **Steps**:
 1. Create new service file:
    ```javascript
-   import Pusher from 'pusher';
-   import nconf from 'nconf';
-
-   let pusher;
-   if (nconf.get('PUSHER_KEY')) {
-     pusher = new Pusher({
-       appId: nconf.get('PUSHER_APP_ID'),
-       key: nconf.get('PUSHER_KEY'),
-       secret: nconf.get('PUSHER_SECRET'),
-       cluster: nconf.get('PUSHER_CLUSTER'),
-     });
-   }
+   import { sendNotification } from '../pushNotifications';
 
    export async function broadcastClientAction(reward, user) {
      const { clientAction } = reward.actionConfig;
@@ -993,30 +982,32 @@ fi`;
      if (!clientAction) return null;
 
      const actionPayload = {
-       type: 'reward:action',
+       rewardId: reward._id,
+       rewardName: reward.text,
+       actionType: 'client_action',
        action: clientAction.action,
        duration: clientAction.duration,
        devices: clientAction.devices,
        customPayload: clientAction.customPayload,
-       rewardId: reward._id,
-       rewardName: reward.text,
        timestamp: new Date().toISOString(),
      };
 
-     // Broadcast to all user's connected clients
-     if (pusher) {
-       await pusher.trigger(
-         `private-user-${user._id}`,
-         'reward:action',
-         actionPayload
-       );
-     }
+     // Send push notification to all user's registered mobile devices
+     await sendNotification(user, {
+       title: 'Reward Claimed',
+       message: `${reward.text} - Action triggered`,
+       identifier: 'rewardAction',
+       category: 'rewardAction',
+       payload: actionPayload,
+     });
 
      return actionPayload;
    }
    ```
 
-**Expected Outcome**: Client actions can be broadcast to user's connected devices
+**Expected Outcome**: Push notifications sent to user's native mobile apps (iOS/Android) with action payload
+
+**Note**: Uses existing Firebase Cloud Messaging (FCM) and Apple Push Notification (APN) infrastructure
 
 ---
 
@@ -1248,122 +1239,86 @@ fi`;
 
 ---
 
-### Task 23: Client-Side Action Handler
+### Task 23: Web Client Notification Handler
 
-**File**: `website/client/src/libs/rewardActionHandler.js` (NEW)
+**File**: `website/client/src/mixins/scoreTask.js`
 
 **Steps**:
-1. Create new handler class:
+1. Add method to handleTaskScoreNotifications or create new method:
    ```javascript
-   export class RewardActionHandler {
-     constructor(store) {
-       this.store = store;
-       this.setupListeners();
-     }
+   handleRewardAction(rewardAction) {
+     const { executed, actionType, webhookStatus, clientAction, apiPolling } = rewardAction;
 
-     setupListeners() {
-       // Listen for Pusher events
-       const userId = this.store.state.user?.data?._id;
-       if (!userId) return;
+     if (!executed) return;
 
-       // Subscribe to user's private channel
-       const channel = window.habiticaPusher?.subscribe(`private-user-${userId}`);
-       channel?.bind('reward:action', this.handleRewardAction.bind(this));
-     }
+     // Display notification for client actions (executed on mobile apps)
+     if (clientAction) {
+       const actionMessages = {
+         unblock_device: this.$t('deviceUnlockedNotification', {
+           devices: clientAction.devices.join(', '),
+           duration: clientAction.duration
+         }),
+         notification: this.$t('notificationTriggered'),
+         custom: this.$t('customActionTriggered'),
+       };
 
-     async handleRewardAction(payload) {
-       console.log('Reward action received:', payload);
-
-       const { action, duration, devices, customPayload } = payload;
-
-       switch (action) {
-         case 'unblock_device':
-           await this.handleUnblockDevice(devices, duration, payload);
-           break;
-         case 'notification':
-           this.showNotification(customPayload);
-           break;
-         case 'custom':
-           await this.handleCustomAction(customPayload);
-           break;
-       }
-     }
-
-     async handleUnblockDevice(devices, duration, payload) {
-       // Emit browser event for device management integrations
-       window.dispatchEvent(new CustomEvent('habitica:unblock-devices', {
-         detail: {
-           devices,
-           duration,
-           rewardName: payload.rewardName,
-           timestamp: payload.timestamp,
-         }
-       }));
-
-       // Show notification in Habitica UI
-       this.store.dispatch('snackbars:add', {
-         title: 'Device Unblocked',
-         text: `${devices.join(', ')} unlocked for ${duration} minutes`,
-         type: 'success',
+       this.$store.dispatch('snackbars:add', {
+         title: this.$t('rewardActionExecuted'),
+         text: actionMessages[clientAction.action] || this.$t('actionTriggered'),
+         type: 'info',
          timeout: 5000,
        });
      }
 
-     showNotification(customPayload) {
-       this.store.dispatch('snackbars:add', {
-         title: customPayload?.title || 'Reward Claimed',
-         text: customPayload?.message || 'Your reward action was triggered!',
-         type: customPayload?.type || 'info',
-         timeout: customPayload?.timeout || 3000,
-       });
+     // Display notification for webhook execution
+     if (webhookStatus) {
+       if (webhookStatus.success) {
+         this.$store.dispatch('snackbars:add', {
+           title: this.$t('webhookExecuted'),
+           text: this.$t('webhookExecutedSuccessfully'),
+           type: 'success',
+         });
+       } else {
+         this.$store.dispatch('snackbars:add', {
+           title: this.$t('webhookFailed'),
+           text: this.$t('webhookExecutionFailed', { error: webhookStatus.error }),
+           type: 'error',
+         });
+       }
      }
 
-     async handleCustomAction(customPayload) {
-       // Emit custom event for external integrations
-       window.dispatchEvent(new CustomEvent('habitica:custom-reward-action', {
-         detail: customPayload
-       }));
-
-       console.log('Custom reward action:', customPayload);
+     // Display notification for API polling
+     if (apiPolling && apiPolling.enabled) {
+       this.$store.dispatch('snackbars:add', {
+         title: this.$t('rewardPurchased'),
+         text: this.$t('apiPollingUpdated'),
+         type: 'info',
+       });
      }
    }
    ```
 
-**Expected Outcome**: Client can receive and handle reward action events
-
----
-
-### Task 24: Initialize Action Handler
-
-**File**: `website/client/src/main.js` or `app.vue`
-
-**Steps**:
-1. Import handler:
+2. Call this method in handleTaskScoreNotifications:
    ```javascript
-   import { RewardActionHandler } from '@/libs/rewardActionHandler';
-   ```
+   async handleTaskScoreNotifications(tmpObject = {}) {
+     // ... existing code ...
 
-2. Initialize after user is loaded:
-   ```javascript
-   // In app.vue created() or mounted()
-   this.$store.watch(
-     state => state.isUserLoaded,
-     (loaded) => {
-       if (loaded) {
-         // Initialize reward action handler
-         this.rewardActionHandler = new RewardActionHandler(this.$store);
-       }
+     // Handle reward actions
+     if (tmpObject.rewardAction) {
+       this.handleRewardAction(tmpObject.rewardAction);
      }
-   );
+   }
    ```
 
-**Expected Outcome**: Action handler listens for events when user is logged in
+**Expected Outcome**: Web client displays informational notifications about actions
+
+**Note**: Web client does NOT execute actions - only shows notifications. Actions execute on native mobile apps (via push notifications) and via webhooks (server-side)
 
 ---
 
 ## Phase 5: Polish & Integration
 
-### Task 25: Action Indicator in Task Display
+### Task 24: Action Indicator in Task Display
 
 **File**: `website/client/src/components/tasks/task.vue`
 
@@ -1418,7 +1373,7 @@ fi`;
 
 ---
 
-### Task 26: Purchase Success Notifications
+### Task 25: Purchase Success Notifications
 
 **File**: `website/client/src/mixins/scoreTask.js`
 
@@ -1485,7 +1440,7 @@ fi`;
 
 ---
 
-### Task 27: Action Notification Translation Keys
+### Task 26: Action Notification Translation Keys
 
 **File**: `website/common/locales/en/tasks.json`
 
@@ -1509,7 +1464,7 @@ fi`;
 
 ---
 
-### Task 28: Styling for Action Config Panels
+### Task 27: Styling for Action Config Panels
 
 **File**: `website/client/src/components/tasks/taskModal.vue`
 
@@ -1579,7 +1534,7 @@ fi`;
 
 ---
 
-### Task 29: Error Handling & Validation
+### Task 28: Error Handling & Validation
 
 **Steps**:
 
@@ -1646,7 +1601,7 @@ fi`;
 
 ---
 
-### Task 30: Documentation
+### Task 29: Documentation
 
 **Files**: Create multiple documentation files
 
