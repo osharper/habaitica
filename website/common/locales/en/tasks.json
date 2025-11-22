@@ -187,5 +187,21 @@
   "rewardActionExecuted": "Reward Action Executed",
   "deviceUnlockedNotification": "Devices unlocked: <%= devices %> for <%= duration %> minutes",
   "webhookTriggered": "Webhook triggered successfully",
-  "apiPollingEnabled": "API polling enabled - external systems can check purchase status"
+  "apiPollingEnabled": "API polling enabled - external systems can check purchase status",
+  "actionType": "Action Type",
+  "selectActionType": "Select an action type...",
+  "apiPolling": "API Polling",
+  "webhook": "Webhook",
+  "clientAction": "Client Action",
+  "multipleActions": "Multiple Actions",
+  "comingSoon": "Coming Soon",
+  "enableApiPolling": "Enable API Polling",
+  "apiPollingDescription": "External systems (like routers, smart home controllers) can poll this endpoint to check if the reward was purchased today",
+  "pollingEndpoint": "Polling Endpoint URL",
+  "copy": "Copy",
+  "copied": "Copied!",
+  "urlCopiedToClipboard": "URL copied to clipboard",
+  "copyFailed": "Failed to copy to clipboard",
+  "exampleResponse": "Example Response",
+  "configurationComingSoon": "Configuration for this action type will be available soon"
 }

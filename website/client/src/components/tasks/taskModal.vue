@@ -211,10 +211,85 @@
               v-if="task.actionEnabled"
               class="reward-actions-config mt-3 p-3 bg-light border rounded"
             >
-              <p class="text-muted small">
-                {{ $t('rewardActionsConfigPlaceholder') }}
-              </p>
-              <!-- Reward action configuration will be added in later phases -->
+              <div class="form-group">
+                <label class="mb-2">{{ $t('actionType') }}</label>
+                <select
+                  v-model="task.actionType"
+                  class="form-control"
+                >
+                  <option value="">{{ $t('selectActionType') }}</option>
+                  <option value="api_polling">{{ $t('apiPolling') }}</option>
+                  <option value="webhook">{{ $t('webhook') }} ({{ $t('comingSoon') }})</option>
+                  <option value="client_action">{{ $t('clientAction') }} ({{ $t('comingSoon') }})</option>
+                  <option value="multiple">{{ $t('multipleActions') }} ({{ $t('comingSoon') }})</option>
+                </select>
+              </div>
+
+              <!-- API Polling Configuration -->
+              <div
+                v-if="task.actionType === 'api_polling'"
+                class="api-polling-config mt-3"
+              >
+                <div class="form-group">
+                  <div class="custom-control custom-switch mb-3">
+                    <input
+                      id="apiPollingEnabled"
+                      v-model="task.actionConfig.apiPolling.enabled"
+                      type="checkbox"
+                      class="custom-control-input"
+                    >
+                    <label
+                      class="custom-control-label"
+                      for="apiPollingEnabled"
+                    >
+                      {{ $t('enableApiPolling') }}
+                    </label>
+                  </div>
+                </div>
+
+                <div
+                  v-if="task.actionConfig.apiPolling.enabled"
+                  class="api-polling-details"
+                >
+                  <div class="alert alert-info">
+                    <small>{{ $t('apiPollingDescription') }}</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="mb-2">{{ $t('pollingEndpoint') }}</label>
+                    <div class="input-group">
+                      <input
+                        :value="getApiPollingUrl()"
+                        type="text"
+                        class="form-control font-monospace small"
+                        readonly
+                      >
+                      <div class="input-group-append">
+                        <button
+                          class="btn btn-secondary"
+                          type="button"
+                          @click="copyToClipboard(getApiPollingUrl())"
+                        >
+                          {{ $t('copy') }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="form-group mt-3">
+                    <label class="mb-2">{{ $t('exampleResponse') }}</label>
+                    <pre class="bg-dark text-light p-3 rounded small">{{ getExampleResponse() }}</pre>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Placeholder for other action types -->
+              <div
+                v-if="task.actionType && task.actionType !== 'api_polling'"
+                class="text-muted small mt-3"
+              >
+                {{ $t('configurationComingSoon') }}
+              </div>
             </div>
           </div>
         </div>
@@ -1549,6 +1624,47 @@ export default {
       const tagResult = await this.createTag({ name });
 
       this.task.tags.push(tagResult.id);
+    },
+    getApiPollingUrl () {
+      if (!this.task || !this.task._id) return '';
+      const baseUrl = window.location.origin;
+      return `${baseUrl}/api/v4/rewards/${this.task._id}/purchase-status`;
+    },
+    async copyToClipboard (text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        this.$store.dispatch('snackbars:add', {
+          title: this.$t('copied'),
+          text: this.$t('urlCopiedToClipboard'),
+          type: 'success',
+          timeout: 2000,
+        });
+      } catch (err) {
+        this.$store.dispatch('snackbars:add', {
+          title: this.$t('error'),
+          text: this.$t('copyFailed'),
+          type: 'error',
+        });
+      }
+    },
+    getExampleResponse () {
+      return JSON.stringify({
+        success: true,
+        data: {
+          reward: {
+            _id: this.task?._id || 'reward-id',
+            text: this.task?.text || 'Reward Name',
+            value: this.task?.value || 10,
+          },
+          lastPurchased: '2025-11-22T14:30:00.000Z',
+          lastPurchasedBy: 'user-id',
+          purchasedToday: true,
+          minutesSincePurchase: 45,
+          actionConfig: {
+            duration: 60,
+          },
+        },
+      }, null, 2);
     },
   },
 };
