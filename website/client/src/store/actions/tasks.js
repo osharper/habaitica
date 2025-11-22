@@ -293,3 +293,18 @@ export async function toggleTaskAI (store, { taskId, aiEnabled }) {
 
   return response.data.data;
 }
+
+// Reward Actions
+export async function testRewardWebhook (store, { rewardId, webhookConfig }) {
+  // Placeholder for webhook testing - will be implemented in Phase 3
+  const response = await axios.post(`/api/v4/rewards/${rewardId}/test-webhook`, {
+    webhook: webhookConfig,
+  });
+  return response.data.data;
+}
+
+export async function getRewardPurchaseStatus (store, rewardId) {
+  // Fetch reward purchase status for API polling
+  const response = await axios.get(`/api/v4/rewards/${rewardId}/purchase-status`);
+  return response.data.data;
+}

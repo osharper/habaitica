@@ -535,6 +535,61 @@ async function scoreTask (user, task, direction, req, res) {
     }
   }
 
+  // Track reward purchases
+  let rewardAction = null;
+  if (task.type === 'reward' && direction === 'up') {
+    const now = new Date();
+
+    // Update purchase tracking fields
+    task.lastPurchased = now;
+    task.lastPurchasedBy = user._id;
+
+    // Add to purchase history (keep last 10)
+    if (!task.purchaseHistory) {
+      task.purchaseHistory = [];
+    }
+    task.purchaseHistory.unshift({
+      timestamp: now,
+      userId: user._id,
+    });
+    if (task.purchaseHistory.length > 10) {
+      task.purchaseHistory = task.purchaseHistory.slice(0, 10);
+    }
+
+    // Prepare reward action data if enabled
+    if (task.actionEnabled && task.actionConfig) {
+      rewardAction = {
+        rewardId: task._id,
+        rewardName: task.text,
+        timestamp: now.toISOString(),
+      };
+
+      // Include action details based on type
+      if (task.actionConfig.clientAction &&
+          (task.actionType === 'client_action' || task.actionType === 'multiple')) {
+        rewardAction.clientAction = {
+          action: task.actionConfig.clientAction.action,
+          duration: task.actionConfig.clientAction.duration,
+          devices: task.actionConfig.clientAction.devices,
+          customPayload: task.actionConfig.clientAction.customPayload,
+        };
+      }
+
+      if (task.actionConfig.webhook?.enabled &&
+          (task.actionType === 'webhook' || task.actionType === 'multiple')) {
+        rewardAction.webhookStatus = 'pending';
+      }
+
+      if (task.actionConfig.apiPolling?.enabled &&
+          (task.actionType === 'api_polling' || task.actionType === 'multiple')) {
+        rewardAction.apiPolling = {
+          enabled: true,
+          endpointUrl: `/api/v4/rewards/${task._id}/purchase-status`,
+        };
+      }
+    }
+  }
+
   const wasCompleted = task.completed;
   const firstTask = !user.achievements.completedTask;
   let delta;
@@ -628,6 +683,7 @@ async function scoreTask (user, task, direction, req, res) {
     pullTask,
     pushTask,
     unlockedRewards,
+    rewardAction,
     // clone user._tmp so that it's not overwritten by other score operations
     // when using the bulk scoring API
     _tmp: cloneDeep(user._tmp),
@@ -716,12 +772,19 @@ export async function scoreTasks (user, taskScorings, req, res) {
     handleChallengeTask(data.task, data.delta, data.direction);
     handleTeamTask(data.task, data.delta, data.direction);
 
-    return {
+    const result = {
       id: data.task._id,
       delta: data.delta,
       _tmp: data._tmp,
       unlockedRewards: data.unlockedRewards || [],
     };
+
+    // Include rewardAction if present
+    if (data.rewardAction) {
+      result.rewardAction = data.rewardAction;
+    }
+
+    return result;
   });
 }
 

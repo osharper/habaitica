@@ -104,6 +104,24 @@ export default function taskDefaults (task, user) {
   if (task.type === 'reward') {
     defaults(task, {
       requiredTasks: [],
+      actionEnabled: false,
+      actionConfig: {
+        clientAction: {
+          devices: [],
+        },
+        webhook: {
+          enabled: false,
+          method: 'POST',
+          headers: {},
+          body: {},
+          timeout: 5000,
+        },
+        apiPolling: {
+          enabled: false,
+        },
+      },
+      purchaseHistory: [],
+      webhookLogs: [],
     });
   }
 

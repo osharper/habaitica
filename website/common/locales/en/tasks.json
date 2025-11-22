@@ -178,5 +178,14 @@
   "aiApprovedTask": "Great work! Your task has been approved and completed.",
   "errorLoadingChat": "Failed to load chat messages. Please try again.",
   "errorSendingMessage": "Failed to send message. Please try again.",
-  "rewardLockedByTasks": "This reward is locked until you complete all required tasks"
+  "rewardLockedByTasks": "This reward is locked until you complete all required tasks",
+  "rewardActions": "Reward Actions",
+  "rewardActionsDescription": "Trigger real-world actions when purchasing this reward",
+  "rewardActionsConfigPlaceholder": "Action configuration will be available in upcoming phases",
+  "enabled": "Enabled",
+  "disabled": "Disabled",
+  "rewardActionExecuted": "Reward Action Executed",
+  "deviceUnlockedNotification": "Devices unlocked: <%= devices %> for <%= duration %> minutes",
+  "webhookTriggered": "Webhook triggered successfully",
+  "apiPollingEnabled": "API polling enabled - external systems can check purchase status"
 }

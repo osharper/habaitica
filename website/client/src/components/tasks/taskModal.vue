@@ -184,6 +184,39 @@
               </div>
             </div>
           </div>
+          <div class="form-group mt-4">
+            <div class="d-flex align-items-center mb-2">
+              <label class="mb-0 mr-2">
+                {{ $t('rewardActions') }}
+              </label>
+              <div class="custom-control custom-switch">
+                <input
+                  id="rewardActionToggle"
+                  v-model="task.actionEnabled"
+                  type="checkbox"
+                  class="custom-control-input"
+                >
+                <label
+                  class="custom-control-label"
+                  for="rewardActionToggle"
+                >
+                  {{ task.actionEnabled ? $t('enabled') : $t('disabled') }}
+                </label>
+              </div>
+            </div>
+            <p class="small text-muted mb-2">
+              {{ $t('rewardActionsDescription') }}
+            </p>
+            <div
+              v-if="task.actionEnabled"
+              class="reward-actions-config mt-3 p-3 bg-light border rounded"
+            >
+              <p class="text-muted small">
+                {{ $t('rewardActionsConfigPlaceholder') }}
+              </p>
+              <!-- Reward action configuration will be added in later phases -->
+            </div>
+          </div>
         </div>
         <div
           v-if="checklistEnabled"

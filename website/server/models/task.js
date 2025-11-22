@@ -438,5 +438,61 @@ export const RewardSchema = new Schema({
     type: String,
     validate: [v => validator.isUUID(v), 'Invalid task UUID.'],
   }],
+
+  // Reward Actions
+  actionEnabled: { $type: Boolean, default: false },
+  actionType: {
+    $type: String,
+    enum: ['client_action', 'webhook', 'api_polling', 'multiple'],
+  },
+  actionConfig: {
+    $type: {
+      clientAction: {
+        $type: {
+          action: { $type: String, enum: ['unblock_device', 'notification', 'custom'] },
+          duration: { $type: Number }, // in minutes
+          devices: [{ $type: String }], // device identifiers
+          customPayload: { $type: Schema.Types.Mixed },
+        },
+      },
+      webhook: {
+        $type: {
+          enabled: { $type: Boolean, default: false },
+          url: { $type: String },
+          method: { $type: String, enum: ['GET', 'POST', 'PUT'], default: 'POST' },
+          headers: { $type: Schema.Types.Mixed }, // { "Authorization": "Bearer token", ... }
+          body: { $type: Schema.Types.Mixed }, // Request body with template variables
+          timeout: { $type: Number, default: 5000 }, // milliseconds
+        },
+      },
+      apiPolling: {
+        $type: {
+          enabled: { $type: Boolean, default: false },
+        },
+      },
+    },
+  },
+
+  // Purchase tracking
+  lastPurchased: { $type: Date },
+  lastPurchasedBy: { $type: String, ref: 'User' },
+  purchaseHistory: [{
+    $type: {
+      timestamp: { $type: Date, default: Date.now },
+      userId: { $type: String },
+    },
+    _id: false,
+  }],
+
+  // Webhook execution logs
+  webhookLogs: [{
+    $type: {
+      timestamp: { $type: Date, default: Date.now },
+      success: { $type: Boolean },
+      statusCode: { $type: Number },
+      error: { $type: String },
+    },
+    _id: false,
+  }],
 }, subDiscriminatorOptions);
 export const reward = Task.discriminator('reward', RewardSchema);

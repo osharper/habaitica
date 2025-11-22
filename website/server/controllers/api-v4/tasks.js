@@ -1,6 +1,18 @@
 import _ from 'lodash';
+import moment from 'moment';
 import { authWithHeaders } from '../../middlewares/auth';
+import {
+  model as Task,
+} from '../../models/task';
+import {
+  model as User,
+} from '../../models/user';
+import {
+  NotFound,
+  BadRequest,
+} from '../../libs/errors';
 import { scoreTasks } from '../../libs/tasks';
+import getUtcOffset from '../../../common/script/fns/getUtcOffset';
 
 const api = {};
 
@@ -63,6 +75,103 @@ api.scoreTasks = {
     const userStats = user.stats.toJSON();
     const resJsonData = _.assign({ tasks: tasksResponses }, userStats);
     res.respond(200, resJsonData);
+  },
+};
+
+/**
+ * @api {get} /api/v4/rewards/:rewardId/purchase-status Get reward purchase status
+ * @apiName GetRewardPurchaseStatus
+ * @apiGroup Task
+ *
+ * @apiParam (Path) {String} rewardId The reward identifier
+ * @apiParam (Query) {String} [userId] User ID (defaults to authenticated user)
+ *
+ * @apiSuccess {Object} data Reward purchase status information
+ * @apiSuccess {Object} data.reward Basic reward information
+ * @apiSuccess {String} data.reward._id Reward ID
+ * @apiSuccess {String} data.reward.text Reward name
+ * @apiSuccess {Number} data.reward.value Reward cost
+ * @apiSuccess {Date} data.lastPurchased Timestamp of last purchase
+ * @apiSuccess {String} data.lastPurchasedBy User ID who last purchased
+ * @apiSuccess {Boolean} data.purchasedToday Whether purchased today (respects dayStart)
+ * @apiSuccess {Number} data.minutesSincePurchase Minutes since last purchase
+ * @apiSuccess {Object} [data.actionConfig] Action configuration (if API polling enabled)
+ * @apiSuccess {Number} [data.actionConfig.duration] Duration in minutes
+ *
+ * @apiUse TaskNotFound
+ */
+api.getRewardPurchaseStatus = {
+  method: 'GET',
+  url: '/rewards/:rewardId/purchase-status',
+  middlewares: [authWithHeaders()],
+  async handler (req, res) {
+    const { rewardId } = req.params;
+    const userIdParam = req.query.userId;
+    const { user } = res.locals;
+
+    // Validate rewardId
+    if (!rewardId) {
+      throw new BadRequest('Reward ID is required');
+    }
+
+    // Fetch the reward
+    const reward = await Task.findOne({
+      _id: rewardId,
+      type: 'reward',
+    }).exec();
+
+    if (!reward) {
+      throw new NotFound('Reward not found');
+    }
+
+    // Determine target user ID
+    let targetUserId = user._id;
+    if (userIdParam && userIdParam !== user._id) {
+      // For now, only allow checking own purchases
+      throw new BadRequest('Can only check own purchase status');
+    }
+
+    // Calculate purchasedToday based on user's dayStart
+    let purchasedToday = false;
+    let minutesSincePurchase = null;
+
+    if (reward.lastPurchased && reward.lastPurchasedBy === targetUserId) {
+      const now = moment().utcOffset(getUtcOffset(user));
+      const lastPurchasedMoment = moment(reward.lastPurchased).utcOffset(getUtcOffset(user));
+
+      // Calculate start of today based on user's custom day start
+      const startOfToday = now.clone().startOf('day').add({
+        hours: user.preferences.dayStart || 0,
+      });
+
+      // Check if last purchase was after start of today
+      purchasedToday = lastPurchasedMoment.isAfter(startOfToday);
+
+      // Calculate minutes since purchase
+      minutesSincePurchase = now.diff(lastPurchasedMoment, 'minutes');
+    }
+
+    // Build response
+    const responseData = {
+      reward: {
+        _id: reward._id,
+        text: reward.text,
+        value: reward.value,
+      },
+      lastPurchased: reward.lastPurchased || null,
+      lastPurchasedBy: reward.lastPurchasedBy || null,
+      purchasedToday,
+      minutesSincePurchase,
+    };
+
+    // Include action config if API polling is enabled
+    if (reward.actionEnabled && reward.actionConfig?.apiPolling?.enabled) {
+      responseData.actionConfig = {
+        duration: reward.actionConfig.clientAction?.duration || null,
+      };
+    }
+
+    res.respond(200, responseData);
   },
 };
 
