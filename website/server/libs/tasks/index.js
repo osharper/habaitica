@@ -27,6 +27,7 @@ import {
 import shared from '../../../common';
 import { taskScoredWebhook } from '../webhook';
 import { executeWebhook } from '../webhookUtils';
+import { sendNotification } from '../pushNotifications';
 
 import logger from '../logger';
 
@@ -626,6 +627,38 @@ async function scoreTask (user, task, direction, req, res) {
             }
           } catch (error) {
             logger.error(error, 'Error executing webhook for reward');
+          }
+        });
+      }
+
+      // Broadcast client action via push notifications if configured
+      if (task.actionConfig.clientAction &&
+          (task.actionType === 'client_action' || task.actionType === 'multiple')) {
+        // Send push notification to all user's mobile devices asynchronously
+        setImmediate(async () => {
+          try {
+            const actionPayload = {
+              rewardId: task._id,
+              rewardName: task.text,
+              actionType: 'client_action',
+              action: task.actionConfig.clientAction.action,
+              duration: task.actionConfig.clientAction.duration,
+              devices: task.actionConfig.clientAction.devices || [],
+              customPayload: task.actionConfig.clientAction.customPayload,
+              timestamp: new Date().toISOString(),
+            };
+
+            await sendNotification(user, {
+              title: 'Reward Claimed',
+              message: `${task.text} - Action triggered`,
+              identifier: 'rewardAction',
+              category: 'rewardAction',
+              payload: actionPayload,
+            });
+
+            logger.info(`Client action broadcasted for reward ${task._id} to user ${user._id}`);
+          } catch (error) {
+            logger.error(error, 'Error broadcasting client action');
           }
         });
       }

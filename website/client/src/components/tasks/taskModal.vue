@@ -442,9 +442,114 @@
                 </div>
               </div>
 
+              <!-- Client Action Configuration -->
+              <div
+                v-if="task.actionType === 'client_action'"
+                class="client-action-config mt-3"
+              >
+                <div class="alert alert-info">
+                  <small>{{ $t('clientActionDescription') }}</small>
+                </div>
+
+                <div class="form-group">
+                  <label class="mb-2">{{ $t('clientActionType') }}</label>
+                  <select
+                    v-model="task.actionConfig.clientAction.action"
+                    class="form-control"
+                  >
+                    <option value="">{{ $t('selectClientAction') }}</option>
+                    <option value="unblock_device">{{ $t('unblockDevice') }}</option>
+                    <option value="notification">{{ $t('sendNotification') }}</option>
+                    <option value="custom">{{ $t('customAction') }}</option>
+                  </select>
+                </div>
+
+                <div
+                  v-if="task.actionConfig.clientAction.action === 'unblock_device'"
+                  class="unblock-device-config"
+                >
+                  <div class="form-group">
+                    <label class="mb-2">{{ $t('duration') }} ({{ $t('minutes') }})</label>
+                    <input
+                      v-model.number="task.actionConfig.clientAction.duration"
+                      type="number"
+                      class="form-control"
+                      min="1"
+                      max="1440"
+                      :placeholder="$t('durationPlaceholder')"
+                    >
+                    <small class="text-muted">{{ $t('durationHelp') }}</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="mb-2">{{ $t('targetDevices') }}</label>
+                    <small class="text-muted d-block mb-2">{{ $t('targetDevicesHelp') }}</small>
+                    <div
+                      v-for="(device, index) in task.actionConfig.clientAction.devices"
+                      :key="index"
+                      class="input-group mb-2"
+                    >
+                      <input
+                        :value="device"
+                        type="text"
+                        class="form-control"
+                        placeholder="Device identifier"
+                        readonly
+                      >
+                      <div class="input-group-append">
+                        <button
+                          class="btn btn-danger"
+                          type="button"
+                          @click="removeDevice(index)"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                    <div class="input-group">
+                      <input
+                        v-model="newDevice"
+                        type="text"
+                        class="form-control"
+                        :placeholder="$t('deviceIdPlaceholder')"
+                      >
+                      <div class="input-group-append">
+                        <button
+                          class="btn btn-secondary"
+                          type="button"
+                          @click="addDevice"
+                        >
+                          {{ $t('add') }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  v-if="task.actionConfig.clientAction.action === 'custom'"
+                  class="custom-action-config"
+                >
+                  <div class="form-group">
+                    <label class="mb-2">{{ $t('customPayload') }} (JSON)</label>
+                    <textarea
+                      v-model="clientActionPayloadString"
+                      class="form-control font-monospace small"
+                      rows="5"
+                      :placeholder="$t('customPayloadPlaceholder')"
+                      @blur="updateClientActionPayload"
+                    ></textarea>
+                  </div>
+                </div>
+
+                <div class="alert alert-warning mt-3">
+                  <small><strong>{{ $t('note') }}:</strong> {{ $t('clientActionNote') }}</small>
+                </div>
+              </div>
+
               <!-- Placeholder for other action types -->
               <div
-                v-if="task.actionType && !['api_polling', 'webhook'].includes(task.actionType)"
+                v-if="task.actionType && !['api_polling', 'webhook', 'client_action'].includes(task.actionType)"
                 class="text-muted small mt-3"
               >
                 {{ $t('configurationComingSoon') }}
@@ -1511,6 +1616,9 @@ export default {
       newHeaderKey: '',
       newHeaderValue: '',
       webhookBodyString: '',
+      // Client action configuration
+      newDevice: '',
+      clientActionPayloadString: '',
     };
   },
   computed: {
@@ -1873,6 +1981,35 @@ export default {
           text: err.response?.data?.message || this.$t('webhookTestFailed'),
           type: 'error',
         });
+      }
+    },
+    addDevice () {
+      if (!this.newDevice) return;
+      if (!this.task.actionConfig.clientAction.devices) {
+        this.$set(this.task.actionConfig.clientAction, 'devices', []);
+      }
+      this.task.actionConfig.clientAction.devices.push(this.newDevice);
+      this.newDevice = '';
+    },
+    removeDevice (index) {
+      this.task.actionConfig.clientAction.devices.splice(index, 1);
+    },
+    updateClientActionPayload () {
+      try {
+        // Parse and validate JSON
+        this.task.actionConfig.clientAction.customPayload = JSON.parse(this.clientActionPayloadString || '{}');
+      } catch (err) {
+        this.$store.dispatch('snackbars:add', {
+          title: this.$t('error'),
+          text: this.$t('invalidJson'),
+          type: 'error',
+        });
+        // Reset to previous valid value
+        this.clientActionPayloadString = JSON.stringify(
+          this.task.actionConfig.clientAction.customPayload || {},
+          null,
+          2
+        );
       }
     },
   },

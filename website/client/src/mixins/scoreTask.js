@@ -61,6 +61,11 @@ export default {
         this.$root.$emit('show-unlocked-rewards', response.data.data.unlockedRewards);
       }
 
+      // Handle reward actions
+      if (response.data.data.rewardAction) {
+        this.handleRewardAction(response.data.data.rewardAction);
+      }
+
       const tasksScoredCount = getLocalSetting(CONSTANTS.keyConstants.TASKS_SCORED_COUNT);
       if (!tasksScoredCount || tasksScoredCount < 2) {
         Analytics.track({
@@ -162,6 +167,61 @@ export default {
           // Keep support for another type of drops that might be added
           this.drop(drop.dialog);
         }
+      }
+    },
+    handleRewardAction (rewardAction) {
+      // Display notifications for reward actions (web client only shows informational messages)
+      // Actual actions are executed on native mobile apps or via webhooks
+
+      if (rewardAction.clientAction) {
+        const { clientAction } = rewardAction;
+        let message = '';
+
+        if (clientAction.action === 'unblock_device') {
+          const deviceList = clientAction.devices && clientAction.devices.length > 0
+            ? clientAction.devices.join(', ')
+            : this.$t('allDevices');
+
+          message = this.$t('deviceUnlockedNotification', {
+            devices: deviceList,
+            duration: clientAction.duration || 0,
+          });
+        } else if (clientAction.action === 'notification') {
+          message = this.$t('notificationSent');
+        } else if (clientAction.action === 'custom') {
+          message = this.$t('customActionTriggered');
+        }
+
+        if (message) {
+          this.$store.dispatch('snackbars:add', {
+            title: this.$t('rewardActionExecuted'),
+            text: message,
+            type: 'info',
+            timeout: 5000,
+          });
+        }
+      }
+
+      if (rewardAction.webhookStatus) {
+        const message = rewardAction.webhookStatus === 'success'
+          ? this.$t('webhookTriggered')
+          : this.$t('webhookFailed');
+
+        this.$store.dispatch('snackbars:add', {
+          title: this.$t('webhookStatus'),
+          text: message,
+          type: rewardAction.webhookStatus === 'success' ? 'success' : 'warning',
+          timeout: 3000,
+        });
+      }
+
+      if (rewardAction.apiPolling) {
+        this.$store.dispatch('snackbars:add', {
+          title: this.$t('apiPollingEnabled'),
+          text: this.$t('externalSystemsCanCheck'),
+          type: 'info',
+          timeout: 3000,
+        });
       }
     },
   },
