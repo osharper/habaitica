@@ -249,5 +249,6 @@
   "customActionTriggered": "Custom action triggered on your devices",
   "webhookStatus": "Webhook Status",
   "webhookFailed": "Webhook execution failed",
-  "externalSystemsCanCheck": "External systems can now poll for purchase status"
+  "externalSystemsCanCheck": "External systems can now poll for purchase status",
+  "multipleActionsHelp": "Configure multiple action types to be executed when this reward is purchased (API Polling + Webhook + Client Action)"
 }

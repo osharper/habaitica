@@ -219,15 +219,21 @@
                 >
                   <option value="">{{ $t('selectActionType') }}</option>
                   <option value="api_polling">{{ $t('apiPolling') }}</option>
-                  <option value="webhook">{{ $t('webhook') }} ({{ $t('comingSoon') }})</option>
-                  <option value="client_action">{{ $t('clientAction') }} ({{ $t('comingSoon') }})</option>
-                  <option value="multiple">{{ $t('multipleActions') }} ({{ $t('comingSoon') }})</option>
+                  <option value="webhook">{{ $t('webhook') }}</option>
+                  <option value="client_action">{{ $t('clientAction') }}</option>
+                  <option value="multiple">{{ $t('multipleActions') }}</option>
                 </select>
+                <small
+                  v-if="task.actionType === 'multiple'"
+                  class="text-muted mt-2 d-block"
+                >
+                  {{ $t('multipleActionsHelp') }}
+                </small>
               </div>
 
               <!-- API Polling Configuration -->
               <div
-                v-if="task.actionType === 'api_polling'"
+                v-if="task.actionType === 'api_polling' || task.actionType === 'multiple'"
                 class="api-polling-config mt-3"
               >
                 <div class="form-group">
@@ -285,7 +291,7 @@
 
               <!-- Webhook Configuration -->
               <div
-                v-if="task.actionType === 'webhook'"
+                v-if="task.actionType === 'webhook' || task.actionType === 'multiple'"
                 class="webhook-config mt-3"
               >
                 <div class="form-group">
@@ -444,7 +450,7 @@
 
               <!-- Client Action Configuration -->
               <div
-                v-if="task.actionType === 'client_action'"
+                v-if="task.actionType === 'client_action' || task.actionType === 'multiple'"
                 class="client-action-config mt-3"
               >
                 <div class="alert alert-info">
