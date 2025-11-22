@@ -13,6 +13,7 @@ import {
 } from '../../libs/errors';
 import { scoreTasks } from '../../libs/tasks';
 import getUtcOffset from '../../../common/script/fns/getUtcOffset';
+import { executeWebhook } from '../../libs/webhookUtils';
 
 const api = {};
 
@@ -172,6 +173,70 @@ api.getRewardPurchaseStatus = {
     }
 
     res.respond(200, responseData);
+  },
+};
+
+/**
+ * @api {post} /api/v4/rewards/:rewardId/test-webhook Test webhook configuration
+ * @apiName TestRewardWebhook
+ * @apiGroup Task
+ *
+ * @apiParam (Path) {String} rewardId The reward identifier
+ * @apiParam (Body) {Object} webhook Webhook configuration to test
+ * @apiParam (Body) {String} webhook.url Webhook URL
+ * @apiParam (Body) {String="GET","POST","PUT"} [webhook.method=POST] HTTP method
+ * @apiParam (Body) {Object} [webhook.headers] Request headers
+ * @apiParam (Body) {Object} [webhook.body] Request body (for POST/PUT)
+ * @apiParam (Body) {Number} [webhook.timeout=5000] Timeout in milliseconds
+ *
+ * @apiSuccess {Object} data Test result
+ * @apiSuccess {Boolean} data.success Whether the webhook was executed successfully
+ * @apiSuccess {Number} data.statusCode HTTP status code from webhook
+ * @apiSuccess {String} [data.error] Error message if failed
+ *
+ * @apiUse TaskNotFound
+ */
+api.testRewardWebhook = {
+  method: 'POST',
+  url: '/rewards/:rewardId/test-webhook',
+  middlewares: [authWithHeaders()],
+  async handler (req, res) {
+    const { rewardId } = req.params;
+    const { webhook } = req.body;
+    const { user } = res.locals;
+
+    // Validate rewardId
+    if (!rewardId) {
+      throw new BadRequest('Reward ID is required');
+    }
+
+    // Validate webhook config
+    if (!webhook || !webhook.url) {
+      throw new BadRequest('Webhook configuration with URL is required');
+    }
+
+    // Fetch the reward to ensure it exists and belongs to the user
+    const reward = await Task.findOne({
+      _id: rewardId,
+      type: 'reward',
+      userId: user._id,
+    }).exec();
+
+    if (!reward) {
+      throw new NotFound('Reward not found');
+    }
+
+    try {
+      // Execute webhook with test context
+      const result = await executeWebhook(webhook, {
+        user,
+        reward,
+      });
+
+      res.respond(200, result);
+    } catch (error) {
+      throw new BadRequest(`Webhook test failed: ${error.message}`);
+    }
   },
 };
 

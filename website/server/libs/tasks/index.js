@@ -26,6 +26,7 @@ import {
 } from '../groupTasks';
 import shared from '../../../common';
 import { taskScoredWebhook } from '../webhook';
+import { executeWebhook } from '../webhookUtils';
 
 import logger from '../logger';
 
@@ -586,6 +587,47 @@ async function scoreTask (user, task, direction, req, res) {
           enabled: true,
           endpointUrl: `/api/v4/rewards/${task._id}/purchase-status`,
         };
+      }
+
+      // Execute webhook if configured
+      if (task.actionConfig.webhook?.enabled &&
+          (task.actionType === 'webhook' || task.actionType === 'multiple')) {
+        // Execute webhook asynchronously without blocking the response
+        // Wrap in try/catch to prevent errors from breaking the request
+        setImmediate(async () => {
+          try {
+            const webhookResult = await executeWebhook(task.actionConfig.webhook, {
+              user,
+              reward: task,
+            });
+
+            // Log webhook execution
+            if (!task.webhookLogs) {
+              task.webhookLogs = [];
+            }
+            task.webhookLogs.unshift({
+              timestamp: new Date(),
+              success: webhookResult.success,
+              statusCode: webhookResult.statusCode,
+              error: webhookResult.error || null,
+            });
+
+            // Keep only last 20 webhook logs
+            if (task.webhookLogs.length > 20) {
+              task.webhookLogs = task.webhookLogs.slice(0, 20);
+            }
+
+            // Save task with webhook logs
+            await task.save();
+
+            // Update rewardAction status
+            if (rewardAction) {
+              rewardAction.webhookStatus = webhookResult.success ? 'success' : 'failed';
+            }
+          } catch (error) {
+            logger.error(error, 'Error executing webhook for reward');
+          }
+        });
       }
     }
   }

@@ -283,9 +283,168 @@
                 </div>
               </div>
 
+              <!-- Webhook Configuration -->
+              <div
+                v-if="task.actionType === 'webhook'"
+                class="webhook-config mt-3"
+              >
+                <div class="form-group">
+                  <div class="custom-control custom-switch mb-3">
+                    <input
+                      id="webhookEnabled"
+                      v-model="task.actionConfig.webhook.enabled"
+                      type="checkbox"
+                      class="custom-control-input"
+                    >
+                    <label
+                      class="custom-control-label"
+                      for="webhookEnabled"
+                    >
+                      {{ $t('enableWebhook') }}
+                    </label>
+                  </div>
+                </div>
+
+                <div
+                  v-if="task.actionConfig.webhook.enabled"
+                  class="webhook-details"
+                >
+                  <div class="alert alert-info">
+                    <small>{{ $t('webhookDescription') }}</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="mb-2">{{ $t('webhookUrl') }}*</label>
+                    <input
+                      v-model="task.actionConfig.webhook.url"
+                      type="url"
+                      class="form-control"
+                      :placeholder="$t('webhookUrlPlaceholder')"
+                      required
+                    >
+                  </div>
+
+                  <div class="form-group">
+                    <label class="mb-2">{{ $t('httpMethod') }}</label>
+                    <select
+                      v-model="task.actionConfig.webhook.method"
+                      class="form-control"
+                    >
+                      <option value="GET">GET</option>
+                      <option value="POST">POST</option>
+                      <option value="PUT">PUT</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="mb-2">{{ $t('requestHeaders') }}</label>
+                    <small class="text-muted d-block mb-2">{{ $t('webhookHeadersHelp') }}</small>
+                    <div
+                      v-for="(value, key) in task.actionConfig.webhook.headers"
+                      :key="key"
+                      class="input-group mb-2"
+                    >
+                      <input
+                        :value="key"
+                        type="text"
+                        class="form-control"
+                        placeholder="Header name"
+                        readonly
+                      >
+                      <input
+                        :value="value"
+                        type="text"
+                        class="form-control"
+                        placeholder="Header value"
+                        readonly
+                      >
+                      <div class="input-group-append">
+                        <button
+                          class="btn btn-danger"
+                          type="button"
+                          @click="removeWebhookHeader(key)"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                    <div class="input-group">
+                      <input
+                        v-model="newHeaderKey"
+                        type="text"
+                        class="form-control"
+                        placeholder="Header name"
+                      >
+                      <input
+                        v-model="newHeaderValue"
+                        type="text"
+                        class="form-control"
+                        placeholder="Header value"
+                      >
+                      <div class="input-group-append">
+                        <button
+                          class="btn btn-secondary"
+                          type="button"
+                          @click="addWebhookHeader"
+                        >
+                          {{ $t('add') }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="task.actionConfig.webhook.method !== 'GET'"
+                    class="form-group"
+                  >
+                    <label class="mb-2">{{ $t('requestBody') }}</label>
+                    <small class="text-muted d-block mb-2">{{ $t('webhookBodyHelp') }}</small>
+                    <textarea
+                      v-model="webhookBodyString"
+                      class="form-control font-monospace small"
+                      rows="5"
+                      :placeholder="$t('webhookBodyPlaceholder')"
+                      @blur="updateWebhookBody"
+                    ></textarea>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="mb-2">{{ $t('timeout') }} ({{ $t('milliseconds') }})</label>
+                    <input
+                      v-model.number="task.actionConfig.webhook.timeout"
+                      type="number"
+                      class="form-control"
+                      min="1000"
+                      max="30000"
+                      step="1000"
+                    >
+                  </div>
+
+                  <div class="form-group">
+                    <button
+                      class="btn btn-primary"
+                      type="button"
+                      @click="testWebhook"
+                    >
+                      {{ $t('testWebhook') }}
+                    </button>
+                  </div>
+
+                  <div class="alert alert-secondary">
+                    <strong>{{ $t('availableVariables') }}:</strong>
+                    <ul class="mb-0 mt-2 small">
+                      <li><code>{{ "{{userName}}" }}</code> - {{ $t('userNameVar') }}</li>
+                      <li><code>{{ "{{userId}}" }}</code> - {{ $t('userIdVar') }}</li>
+                      <li><code>{{ "{{rewardName}}" }}</code> - {{ $t('rewardNameVar') }}</li>
+                      <li><code>{{ "{{timestamp}}" }}</code> - {{ $t('timestampVar') }}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
               <!-- Placeholder for other action types -->
               <div
-                v-if="task.actionType && task.actionType !== 'api_polling'"
+                v-if="task.actionType && !['api_polling', 'webhook'].includes(task.actionType)"
                 class="text-muted small mt-3"
               >
                 {{ $t('configurationComingSoon') }}
@@ -1348,6 +1507,10 @@ export default {
         per: 'perception',
       },
       calendarHighlights: { dates: [new Date()] },
+      // Webhook configuration
+      newHeaderKey: '',
+      newHeaderValue: '',
+      webhookBodyString: '',
     };
   },
   computed: {
@@ -1665,6 +1828,52 @@ export default {
           },
         },
       }, null, 2);
+    },
+    addWebhookHeader () {
+      if (!this.newHeaderKey || !this.newHeaderValue) return;
+      if (!this.task.actionConfig.webhook.headers) {
+        this.$set(this.task.actionConfig.webhook, 'headers', {});
+      }
+      this.$set(this.task.actionConfig.webhook.headers, this.newHeaderKey, this.newHeaderValue);
+      this.newHeaderKey = '';
+      this.newHeaderValue = '';
+    },
+    removeWebhookHeader (key) {
+      this.$delete(this.task.actionConfig.webhook.headers, key);
+    },
+    updateWebhookBody () {
+      try {
+        // Parse and validate JSON
+        this.task.actionConfig.webhook.body = JSON.parse(this.webhookBodyString || '{}');
+      } catch (err) {
+        this.$store.dispatch('snackbars:add', {
+          title: this.$t('error'),
+          text: this.$t('invalidJson'),
+          type: 'error',
+        });
+        // Reset to previous valid value
+        this.webhookBodyString = JSON.stringify(this.task.actionConfig.webhook.body || {}, null, 2);
+      }
+    },
+    async testWebhook () {
+      try {
+        const response = await this.$store.dispatch('tasks:testRewardWebhook', {
+          rewardId: this.task._id,
+          webhookConfig: this.task.actionConfig.webhook,
+        });
+
+        this.$store.dispatch('snackbars:add', {
+          title: this.$t('success'),
+          text: this.$t('webhookTestSuccess'),
+          type: 'success',
+        });
+      } catch (err) {
+        this.$store.dispatch('snackbars:add', {
+          title: this.$t('error'),
+          text: err.response?.data?.message || this.$t('webhookTestFailed'),
+          type: 'error',
+        });
+      }
     },
   },
 };
