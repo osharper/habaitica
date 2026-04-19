@@ -1,0 +1,181 @@
+# 00 — Branching & Upstream Consolidation
+
+**Goal:** Give other contributors a clean entry point and keep the fork mergeable
+with upstream Habitica without constant pain.
+
+## Current state (2026-04-19)
+
+- `origin` = `github.com/osharper/habaitica` (the fork).
+- `upstream` = `github.com/HabitRPG/habitica` (canonical Habitica).
+- **Branches on origin:**
+  - `habaitica-main` — **default**. Contains all fork work (AI assessment,
+    task-locked rewards, reward actions phases 1–5, custom docs). Forked from
+    upstream at tag `5.41.6` (commit `a504b18ce4`).
+  - `develop` — pristine mirror of `upstream/develop` at the time the fork
+    was cloned. **Do not commit fork work here.** We keep it as an easy
+    reference/diff target.
+  - `upstream-sync` — tracks `upstream/develop`. Updated with `git fetch
+    upstream && git push origin upstream-sync:upstream-sync --force-with-lease`.
+  - `claude/habaitica-fork-setup-…` — old working branch, now redundant.
+    See [Cleanup](#cleanup) below.
+- **Upstream drift:** 121 non-merge commits, 6 minor versions (`5.41.6 →
+  5.47.6`), 669 files touched, +21k / −11k lines.
+
+## Branch strategy [DONE]
+
+- [DONE] Default branch renamed to `habaitica-main` via `gh api -X PATCH
+  repos/osharper/habaitica -f default_branch=habaitica-main`.
+- [DONE] Pushed `habaitica-main` with the full custom history + a followup commit
+  bumping the AI SDK versions in `package.json` and adding `GOOGLE_API_KEY` to
+  `config.json.example`.
+- [DONE] Pushed `upstream-sync` tracking `upstream/develop`.
+
+### Rules for contributors
+
+1. **Base all feature branches on `habaitica-main`.**
+2. Branch naming: `feat/<short-name>`, `fix/<short-name>`, `chore/<short-name>`,
+   `ai/<short-name>`, `family/<short-name>`, `rewards/<short-name>`.
+3. Open PRs targeting `habaitica-main`. PRs targeting `develop` will be closed
+   (that branch is just a vendored upstream snapshot).
+4. Don't rewrite history on `habaitica-main` without announcement.
+
+### Cleanup
+
+- [TODO] Delete the `claude/habaitica-fork-setup-…` branches on both origin
+  and local after confirming no open PRs reference them.
+  ```bash
+  git push origin :claude/habaitica-fork-setup-011CV2BvketbdfrRdtGgoyv8
+  git branch -D claude/habaitica-fork-setup-011CV2BvketbdfrRdtGgoyv8
+  ```
+- [TODO] Add branch protection on `habaitica-main` (require PRs, require status
+  checks once CI is green). Can be done via `gh api -X PUT
+  repos/osharper/habaitica/branches/habaitica-main/protection`.
+
+## Upstream consolidation plan
+
+Goal: catch up to `upstream/develop@5.47.6` on top of our custom features
+without losing anything, then stay within 1–2 weeks of upstream.
+
+### High-level approach — merge, not rebase
+
+Rationale: our fork has 11 thematic commits that tell the story of how the
+custom features were built; rebasing them onto upstream risks breaking them
+silently because upstream refactored the task/score pipeline. Merge gives us a
+single conflict-resolution point and an auditable merge commit.
+
+### Known conflict areas (pre-analysis)
+
+Diff `a504b18ce4..upstream/develop`:
+
+| File | Conflict risk | Why |
+|---|---|---|
+| `package.json` | **High** | Upstream dropped `run-rs`, `webpack-bundle-analyzer`; added `heapdump`, `micromustache`, `nan`; bumped `mongoose` to `8.23`, `habitica-markdown` to `4.1`. We bumped `ai@^6` and `@ai-sdk/google@^3`. |
+| `website/server/libs/tasks/index.js` | **High** | Upstream removed the `res.analytics.track('team task scored', …)` call and changed the signature of `shared.ops.scoreTask` / `shared.fns.randomDrop` to stop taking `res.analytics`. Our fork heavily extended this file for reward actions + unlocked-reward detection. |
+| `website/server/controllers/api-v3/tasks.js` | **High** | Upstream removed `res.analytics.track('challenge task created')` and `res.analytics.track('task edit')`. Our fork added ~150 lines for `addTaskChatMessage`, `getTaskChatMessages`, `toggleTaskAI` at the bottom. |
+| `website/server/models/task.js` | Medium | We added `aiEnabled`, `aiChatMessages`, `aiAssessmentStatus`, `requiredTasks`, full reward-actions schema. Upstream mostly untouched in conflicting lines, but schemas get reordered — watch discriminator options. |
+| `website/server/middlewares/analytics.js` | Medium | Upstream reworked analytics in `feat(analytics): initial Habitica-owned solution` (`e6ffd69148`). Our code still calls `res.analytics.track(...)` in the fork-added endpoints. May need shim or migration. |
+| `website/client/package.json` | Medium | Upstream bumped Vite, Vue deps. |
+| CSP / helmet changes (`server.js`) | Medium | Upstream introduced CSP and later had to `fix(auth): downgrade helmet`. Our new AI endpoints stream from Gemini — need to validate CSP headers don't block inline scripts that modals rely on. |
+| `website/client/src/components/tasks/*` | Low | We added new files (`aiChatModal.vue`, `requiredTasksModal.vue`, `rewardUnlockedModal.vue`) and edited `task.vue` / `taskModal.vue`. Upstream also touched these around stat-allocation modals. |
+| `website/common/locales/en/tasks.json` | Low | Both sides appended keys; merge should be straightforward. |
+| Docker + tooling | Low | Upstream added `docker-compose.mongo-only.yml`, `docker-compose.mongo-test-local.yml`, `scripts/start-local-mongo.mjs`, replaced `run-rs`. We keep `docker-compose.dev.yml`. We want both. |
+
+### Upstream feature highlights worth adopting intentionally
+
+| Upstream commit | Why it matters |
+|---|---|
+| `feat(analytics): initial Habitica-owned solution` (`e6ffd69148`) | Replaces third-party analytics plumbing. Our fork still uses the old `res.analytics.track` API. Must either adopt the new service or remove analytics calls from fork-added endpoints. |
+| `Implement stat allocation & auto stat allocation` (`a8062ad615`) | Big UX change, must not be regressed by our task modal edits. |
+| `Replace browser confirmations with confirmation modals` (`781a904583`) | Could replace ad-hoc `confirm()` we might have added. |
+| `Chat optimization` (`5dd9711413`) | Affects chat data-model perf. Doesn't touch AI chat, but both share vocabulary. |
+| `Implement Content-Security-Policy` (`2ee2b05d1c`) + fixes | Required before any production deploy. |
+| `Rework how strings are localized` (`5.44.0`) | If we added English-only strings for AI/reward actions, audit. |
+| `Update local dev MongoDB versions` (`5dd9711413`) | Aligns with our `mongo:dev` scripts; replaces `run-rs` with `scripts/start-local-mongo.mjs`. |
+| `add config to disable ssl and base_url enforcement` (`15587`) | Useful for local dev with our features. |
+
+### Step-by-step consolidation plan
+
+1. **[TODO] Prep merge branch**
+   ```bash
+   git fetch upstream
+   git checkout -b chore/upstream-merge-5.47.6 habaitica-main
+   ```
+2. **[TODO] Attempt merge**, accept ours for fork-added files, resolve
+   the high-risk files manually:
+   ```bash
+   git merge --no-commit upstream/develop
+   ```
+3. **[TODO] Analytics migration**
+   - Read `website/server/middlewares/analytics.js` after merge.
+   - Replace our `res.analytics.track(...)` calls in
+     `api-v3/tasks.js` (AI endpoints) and `libs/tasks/index.js`
+     (reward actions) with whatever shape the Habitica-owned
+     analytics service expects.
+4. **[TODO] Dependency reconciliation**
+   - Keep upstream bumps for `mongoose`, `habitica-markdown`, client deps.
+   - Layer our `ai@^6`, `@ai-sdk/google@^3.0.59` on top.
+   - Re-run `npm install` in root + `website/client` and test that the
+     `postinstall` gulp build still works.
+5. **[TODO] Smoke tests** — `npm run test:api-v3:integration` and
+   `test:api-v4:integration`; run our fork-added tests (see Open Questions).
+6. **[TODO] Sprite/asset rebuild** — upstream touched sprites; run
+   `npm run sprites` and verify no regressions.
+7. **[TODO] Open PR** back into `habaitica-main` so other devs can review
+   the merge conflict resolution.
+
+### Cadence going forward
+
+- **Weekly** (Mondays): fetch upstream, fast-forward `upstream-sync`,
+  run `git log --oneline habaitica-main..upstream-sync` → triage each
+  commit as `adopt now`, `adopt next`, or `skip`.
+- **Monthly**: cut a merge PR as above. Aim for ≤2 minor versions
+  behind upstream so each merge stays tractable.
+- **Security fixes**: cherry-pick immediately, don't wait for monthly
+  merge.
+
+## Local dev onboarding (for new contributors)
+
+```bash
+git clone https://github.com/osharper/habaitica.git
+cd habaitica
+# NEW: You are on habaitica-main, which already has the fork's features
+nvm use          # picks Node 20 from .nvmrc
+cp config.json.example config.json
+# Fill GOOGLE_API_KEY to exercise AI assessment; other secrets optional
+npm install      # runs gulp build + client install in postinstall
+npm run mongo:dev     # MongoDB 7 replica set (transactions required)
+# separate tabs:
+npm start             # API at :3000
+npm run client:dev    # SPA at :8080
+```
+
+Or Docker:
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+## Open questions
+
+- **Q1. Should we keep `develop` at all?** It is currently a stale upstream
+  snapshot and causes confusion ("which branch do I base on?"). Options:
+  (a) delete it, (b) keep it as a literal mirror auto-updated by a cron /
+  GitHub Action, (c) rename to `upstream-snapshot`.
+- **Q2. Fork naming / vanity.** Do we want to rename the repo to `habaitica`
+  (already done) *and* change `package.json#name` from `habitica` to
+  `habaitica`? Risk: breaks scripts that grep for the string
+  "habitica".
+- **Q3. CI.** Upstream has GitHub Actions in `.github/`. Do we keep their
+  workflow (which references secrets we don't have like Weblate / Loggly)
+  or strip it down to lint + test only? Recommend option (b).
+- **Q4. Content submodule.** `.gitmodules` pulls
+  `habitica-images` from upstream. Fork currently tracks the January-2026
+  snapshot; we'll miss new content. Should we auto-update the submodule on
+  each upstream merge, or pin it?
+- **Q5. License.** Upstream is under Habitica's custom license. Our
+  fork-only features still count as derivative work. Check with legal
+  before any distribution/SaaS offering.
+- **Q6. Commit messages + PR template.** Upstream uses a loose mix of
+  conventional and free-form. Do we enforce Conventional Commits on
+  `habaitica-main`? Would enable changelog automation.
+- **Q7. Signed commits?** Some contributors sign, some don't. Enforce or
+  not?
