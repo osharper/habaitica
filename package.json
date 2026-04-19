@@ -1,6 +1,6 @@
 {
-  "name": "habitica",
-  "description": "A habit tracker app which treats your goals like a Role Playing Game.",
+  "name": "habaitica",
+  "description": "Habaitica — a family-first, AI-augmented fork of Habitica.",
   "version": "5.47.6",
   "main": "./website/server/index.js",
   "dependencies": {
