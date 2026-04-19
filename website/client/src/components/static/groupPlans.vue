@@ -1,5 +1,6 @@
 <template>
   <div>
+    <group-plan-selection-modal />
     <group-plan-creation-modal />
     <div class="d-flex justify-content-center">
       <div
@@ -45,6 +46,9 @@
           <p class="gray-200">
             {{ $t('billedMonthly') }}
           </p>
+          <small class="gray-200">
+            {{ $t('groupPlanBillingFYI') }}
+          </small>
         </div>
         <div class="top-right"></div>
         <div class="d-flex justify-content-between align-items-middle w-100 gap-72 mb-100">
@@ -114,6 +118,9 @@
             <p class="gray-200">
               {{ $t('billedMonthly') }}
             </p>
+            <small class="gray-200">
+              {{ $t('groupPlanBillingFYI') }}
+            </small>
           </div>
           <div class="bot-right"></div>
         </div>
@@ -172,6 +179,11 @@
     color: $gray-100;
     font-size: 20px;
     line-height: 28px;
+  }
+
+  small {
+    font-size: 12px;
+    line-height: 1.67;
   }
 
   // Major layout elements
@@ -304,10 +316,12 @@
 import { setup as setupPayments } from '@/libs/payments';
 import paymentsMixin from '../../mixins/payments';
 import GroupPlanCreationModal from '../group-plans/groupPlanCreationModal.vue';
+import GroupPlanSelectionModal from '../group-plans/groupPlanSelectionModal.vue';
 
 export default {
   components: {
     GroupPlanCreationModal,
+    GroupPlanSelectionModal,
   },
   mixins: [paymentsMixin],
   data () {
@@ -348,7 +362,7 @@ export default {
       if (this.upgradingGroup._id) {
         return this.stripeGroup({ group: this.upgradingGroup, upgrade: true });
       }
-      return this.$root.$emit('bv::show::modal', 'create-group');
+      return this.$root.$emit('bv::show::modal', 'group-plan-selection');
     },
   },
 };

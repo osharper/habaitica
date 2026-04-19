@@ -89,7 +89,7 @@
   "fortify": "Fortify",
   "fortifyComplete": "Fortify complete!",
   "deleteTaskType": "Delete this <%= type %>",
-  "sureDeleteType": "Are you sure you want to delete this <%= type %>?",
+  "sureDeleteType": "Are you sure you want to delete this task?",
   "streakCoins": "Streak Bonus!",
   "taskToTop": "To top",
   "taskToBottom": "To bottom",
@@ -250,5 +250,10 @@
   "webhookStatus": "Webhook Status",
   "webhookFailed": "Webhook execution failed",
   "externalSystemsCanCheck": "External systems can now poll for purchase status",
-  "multipleActionsHelp": "Configure multiple action types to be executed when this reward is purchased (API Polling + Webhook + Client Action)"
+  "multipleActionsHelp": "Configure multiple action types to be executed when this reward is purchased (API Polling + Webhook + Client Action)",
+  "deleteType": "Delete <%= type %>",
+  "deleteTask": "Delete Task",
+  "deleteXTasks": "Delete <%= count %> Tasks",
+  "brokenChallengeTaskCount": "This is one of <%= count %> tasks that are part of a Challenge that no longer exists.",
+  "confirmDeleteTasks": "Would you like to delete the tasks?"
 }

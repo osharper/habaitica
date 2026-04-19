@@ -52,17 +52,21 @@
       <div
         v-if="!group.purchased.plan.dateTerminated
           && group.purchased.plan.paymentMethod === 'Stripe'"
-        class="btn btn-primary"
+        class="btn btn-primary mb-3"
         @click="redirectToStripeEdit({groupId: group.id})"
       >
         {{ $t('subUpdateCard') }}
       </div>
-      <div
-        v-if="!group.purchased.plan.dateTerminated"
-        class="btn btn-sm btn-danger"
-        @click="cancelSubscriptionConfirm({group: group})"
-      >
-        {{ $t('cancelGroupSub') }}
+      <div v-if="!group.purchased.plan.dateTerminated">
+        <div class="small gray-50 mb-3" v-once>
+          {{ $t('groupPlanBillingFYIShort') }}
+        </div>
+        <div
+          class="btn btn-sm btn-danger"
+          @click="cancelSubscriptionConfirm({group: group})"
+        >
+          {{ $t('cancelGroupSub') }}
+        </div>
       </div>
     </div>
   </div>
