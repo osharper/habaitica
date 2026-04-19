@@ -82,13 +82,12 @@
     "paymentMethods": "Comprar con",
     "paymentSuccessful": "¡El pago se llevó a cabo con éxito!",
     "paymentYouReceived": "Has recibido:",
-    "paymentYouSentGems": "Has enviado a <strong><%- name %></strong>:",
-    "paymentYouSentSubscription": "Has mandado a <strong><%- name %></strong><br> una suscripción de Habitica de <%= months %> mes/es.",
+    "paymentYouSentGems": "Has enviado a <strong><%= name %></strong>:",
+    "paymentYouSentSubscription": "Has mandado a <strong><%= name %></strong><br> una suscripción de Habitica de <%= months %> mes/es.",
     "paymentSubBilling": "Por tu suscripción, abonarás <strong><%= amount %> $</strong> cada <strong><%= months %> meses</strong>.",
     "success": "¡Éxito!",
     "classGear": "Equipo de clase",
     "classGearText": "¡Enhorabuena por haber escogido una clase! He añadido armamento básico a tu inventario. ¡Échale un vistazo debajo para equipártelo!",
-    "autoAllocate": "Asignación automática",
     "spells": "Habilidades",
     "skillsTitle": "<%= classStr %> Habilidades",
     "toDo": "Tarea pendiente",
@@ -130,5 +129,5 @@
     "sellItems": "Vender objetos",
     "notAvailable": "Este artículo no está disponible.",
     "customizationsShopText": "¿Necesitas un cambio de estilo? ¡Has llegado al lugar adecuado! Tenemos los complementos más actuales para que encajes en la temporada.",
-    "paymentYouSentSubscriptionG1G1": "Enviaste a <strong><%- name %></strong><br> una suscripción a Habitica de <%= months %> mes(es), ¡y la misma suscripción se aplicó a tu cuenta para nuestra promoción Regala uno y llévate otro!"
+    "paymentYouSentSubscriptionG1G1": "Enviaste a <strong><%= name %></strong><br> una suscripción a Habitica de <%= months %> mes(es), ¡y la misma suscripción se aplicó a tu cuenta para nuestra promoción Regala uno y llévate otro!"
 }
