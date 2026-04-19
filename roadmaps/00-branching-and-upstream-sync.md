@@ -165,28 +165,56 @@ Or Docker:
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-## Open questions
+## Decisions
 
-- **Q1. Should we keep `develop` at all?** It is currently a stale upstream
-  snapshot and causes confusion ("which branch do I base on?"). Options:
-  (a) delete it, (b) keep it as a literal mirror auto-updated by a cron /
-  GitHub Action, (c) rename to `upstream-snapshot`.
-- **Q2. Fork naming / vanity.** Do we want to rename the repo to `habaitica`
-  (already done) *and* change `package.json#name` from `habitica` to
-  `habaitica`? Risk: breaks scripts that grep for the string
-  "habitica".
-- **Q3. CI.** Upstream has GitHub Actions in `.github/`. Do we keep their
-  workflow (which references secrets we don't have like Weblate / Loggly)
-  or strip it down to lint + test only? Recommend option (b).
-- **Q4. Content submodule.** `.gitmodules` pulls
-  `habitica-images` from upstream. Fork currently tracks the January-2026
-  snapshot; we'll miss new content. Should we auto-update the submodule on
-  each upstream merge, or pin it?
-- **Q5. License.** Upstream is under Habitica's custom license. Our
-  fork-only features still count as derivative work. Check with legal
-  before any distribution/SaaS offering.
-- **Q6. Commit messages + PR template.** Upstream uses a loose mix of
-  conventional and free-form. Do we enforce Conventional Commits on
-  `habaitica-main`? Would enable changelog automation.
-- **Q7. Signed commits?** Some contributors sign, some don't. Enforce or
-  not?
+- **Q1. `develop` branch → delete.** `develop` is a stale upstream
+  snapshot. Our own fork work lives on `habaitica-main`; pristine
+  upstream is reachable via the `upstream` remote or the
+  `upstream-sync` branch. Keeping `develop` invites PRs against the
+  wrong base. [DONE in this PR: `git push origin --delete develop`.]
+- **Q2. Fork rebrand → full.** `package.json#name` is already renamed
+  to `habaitica` in this PR (with `package.json#description` updated).
+  A staged full rebrand — emails, UI strings, push notifications,
+  docker image names, OAuth apps — is tracked separately in
+  [roadmap 05](./05-brand-and-content.md). Track A of that doc is the
+  full naming sweep; Track B is the owned-art plan that Q4 below
+  depends on.
+- **Q3. CI scope → strip to essentials.** Keep lint and the
+  api-v3/api-v4 integration suites plus `test:common`; drop upstream's
+  Weblate/Loggly/etc. workflows. (Already recorded earlier.)
+- **Q4. Content submodule → pin, plan to own.** We pin
+  `habitica-images` to its current commit and stop auto-bumping on
+  upstream merges. New upstream art does not appear in Habaitica
+  automatically. In parallel we commit to building our own art
+  repository under a Habaitica-chosen license (tentatively
+  CC-BY-SA 4.0). Full plan in [roadmap 05, Track B](./05-brand-and-content.md#track-b--owned-art--content).
+  Rationale: the upstream image repo is governed by a license that
+  blocks commercial redistribution and bakes in Habitica trademark
+  elements; we cannot build a brand-independent product while using
+  it long-term.
+- **Q5. License → GPLv3 with notice.** The fork stays fully
+  open-source under the same GPLv3 as upstream. `NOTICE.md` at the
+  repo root credits HabitRPG, states trademark posture (we do not use
+  the Habitica name or logo as our own brand; "Habaitica" is a
+  distinct fork name), and declares that Habaitica contributions are
+  released under GPLv3 as part of the combined work. Any future
+  commercial offering will host GPLv3 code — consistent with the
+  upstream's own license posture. [DONE in this PR: `NOTICE.md`
+  added.]
+- **Q6. Commit messages → Conventional Commits encouraged, not
+  enforced.** Hard rule: every commit authored by an agent carries
+  an `[agent:<name>]` suffix. Conventional Commit prefixes
+  (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`) are
+  encouraged but not gated by `commitlint`. (Already recorded
+  earlier.)
+- **Q7. Signed commits → not enforced.** Threat model is small
+  maintainer + trusted agents. Branch protection (PR required, 1
+  approval, conversation resolution) is the bar. Revisit if we grow
+  to >5 humans or start a public release cadence.
+
+## Still-open questions
+
+None that block the next phase. The questions carried forward —
+translator coordination, final art license, and asset budget — live in
+[roadmap 05](./05-brand-and-content.md#open-questions) because that's
+where they actually apply.
