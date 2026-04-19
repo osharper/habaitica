@@ -516,9 +516,10 @@ agentic workflow we want **one canonical path** that agents can drive.
 - **Q6. Telemetry on agents themselves.** Track time-saved, error
   rate, false-modifications. Without this, we can't tell which
   agents to invest in. Worth building a tiny tracking layer now?
-- **Q7. Safety rails.** Do any agents get write access to `main` /
-  `habaitica-main`? Recommend: **no, ever**. All changes through PR,
-  all PRs through `code-reviewer`.
+- **Q7. Safety rails.** **Decided (2026-04-20): no agent ever pushes
+  directly to `habaitica-main`.** All agent work ships through a PR
+  on an `agent/<name>/<topic>` branch and requires human approval.
+  Enforced by the branch-protection settings on the remote.
 - **Q8. How much do we let the server repo's agents know about the
   mobile repos?** Leaking mobile-only conventions into
   `habaitica/CLAUDE.md` creates confusion. Keep strict separation;

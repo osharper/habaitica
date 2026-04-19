@@ -165,7 +165,19 @@ Or Docker:
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-## Open questions
+## Decisions recorded (2026-04-20)
+
+- **Q3 — CI scope:** strip upstream's GitHub Actions to lint +
+  `test:api-v3:integration` + `test:api-v4:integration` +
+  `test:common`. Remove Weblate / Loggly / Crowdin steps we have no
+  secrets for. Tracked as roadmap 04 Week 5 item.
+- **Q6 — Commit conventions:** **encourage** Conventional Commits
+  on `habaitica-main`; do **not** enforce with commitlint. The
+  `[agent:<name>]` suffix remains the one hard rule for
+  agent-authored commits (already in `AGENTS.md`). Revisit if the
+  history gets noisy.
+
+## Still-open questions
 
 - **Q1. Should we keep `develop` at all?** It is currently a stale upstream
   snapshot and causes confusion ("which branch do I base on?"). Options:

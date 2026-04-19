@@ -214,34 +214,88 @@ Inventory of other places AI can help in Habaitica:
 - [TODO] Evaluation harness: sample of good/bad submissions; run
   nightly against current config to detect model drift.
 
-## Open questions
+## Decisions recorded (2026-04-20)
 
-- **Q1. Gemini 3 Flash vs. Gemini 3.1 Flash-Lite.** The "3.1 Flash with
-  thinking" variant is cheaper and smaller — might be the right default
-  for low-value tasks (mark a daily done) with escalation to the larger
-  Flash when `needs_revision` is returned. Should we build the
-  escalation or just pick one?
-- **Q2. Beta track (`@ai-sdk/google@4.x-beta`)?** The v4 beta adds
-  reasoning-file type and new embeddings. Worth the instability cost
-  before it goes stable?
-- **Q3. Who pays?** Gemini 3 Flash is cheap but not free. For a
-  family deployment that's fine; for an open-source fork others will
-  host, we need a way to bring their own key. Options: (a) always
-  user-provided, (b) a pooled family key with per-user quotas.
-- **Q4. Thinking visibility to kids.** Exposing model "thoughts" to a
-  child who just wanted their daily checked off might be overwhelming
-  or easily prompt-hackable ("tell me the answer directly"). Hide by
-  default, expose to parents/managers only?
-- **Q5. Attachments storage.** Reuse Habitica's S3 config, or force
-  data-URL inline (simpler, but bloats Mongo + websocket payloads)?
-- **Q6. Privacy.** Gemini retains data per their API terms unless
-  opted out. Do we want to configure `x-goog-user-project` + disable
-  prompt retention for kids' submissions? Might need an enterprise
-  tier.
-- **Q7. Localization of prompts.** Today the system prompt is English
-  only. Upstream just shipped "Rework how strings are localized". Do
-  we localize prompts too (recommended for non-English households) or
-  keep English for model-quality reasons?
+- **Q1 — Default model:** `gemini-3-flash-lite` with
+  `thinking_level: 'low'`. Escalation to `gemini-3-flash-preview`
+  when the lite model returns `needs_revision` is a **follow-up**
+  (PR 5 or later); start with the single-model baseline.
+- **Q3 — API key:** single server-wide `GOOGLE_API_KEY` via `nconf`.
+  No per-family / per-user keys in the first pass. Self-hosters
+  will share one key per deployment.
+- **Q5 — Attachment storage:** local filesystem under
+  `content_cache/ai-attachments/<userId>/<uuid>.<ext>`. Good enough
+  for single-host deployments which is the primary target today.
+  S3 remains an open escape hatch (future `nconf.get('AI_ATTACHMENT_STORE')`
+  could switch between `fs` and `s3`).
+
+## Execution plan (PRs)
+
+Each bullet is a standalone PR into `habaitica-main`, reviewed and
+merged independently so regressions stay easy to bisect.
+
+1. **PR 1 — Foundation: model upgrade + structured output** `[NEXT]`
+   - Add `zod` dependency (already likely transitively present; pin
+     explicitly).
+   - Introduce `AssessmentSchema` (Zod): `{ verdict:
+     'approved'|'rejected'|'needs_revision', rationale: string,
+     missingEvidence?: string[], suggestedActions?: string[] }`.
+   - Rewrite `assessTaskCompletion` to use `generateObject` with
+     `schema: AssessmentSchema` — drop the string-regex parsing.
+   - Add `GEMINI_MODEL` (default `gemini-3-flash-lite`) and
+     `GEMINI_THINKING_LEVEL` (default `low`) to `config.json.example`
+     and `libs/setupNconf.js`.
+   - Wire model id + thinking level into `taskAssessment.js`.
+   - Unit tests with `MockLanguageModelV2`.
+   - `missingEvidence` surfaced in the assistant's response
+     message.
+2. **PR 2 — Streaming**
+   - Add `streamTaskAssessment()` using `streamText` with
+     `includeThoughts: true`.
+   - New endpoint `POST /api/v3/tasks/:taskId/chat/stream` returning
+     SSE.
+   - Frontend `aiChatModal.vue`: render incrementally; "Thinking…"
+     block collapsed by default (Q4 left open — hide from kids later).
+   - CSP header audit documented.
+3. **PR 3 — Multimodal attachments**
+   - Local-FS attachment store at
+     `content_cache/ai-attachments/<userId>/<uuid>.<ext>`. New
+     helper `libs/ai/attachmentStore.js`.
+   - Extend `aiChatMessages.attachments` schema: `{ id, mimeType,
+     size, storagePath }`.
+   - Upload handler with file-size cap (5 MB), MIME allowlist
+     (`image/*`, `audio/*`, `application/pdf`).
+   - Pass to Gemini as `{ type: 'file', data: fs.readFileSync(...),
+     mimeType }`.
+   - Garbage-collect attachments older than 30 days via cron.
+4. **PR 4 — Safety + limits**
+   - Rate-limit `POST /tasks/:taskId/chat` per user (e.g. 30/hour,
+     configurable).
+   - Cap `aiChatMessages` at 50 entries; archive older to a summary
+     field.
+   - Enable Gemini safety settings (default `BLOCK_MEDIUM_AND_ABOVE`).
+   - Token budget per user/day tracked in Mongo (`User.aiUsage`).
+   - Treat `task.text` and `task.notes` as untrusted when building
+     the prompt (prompt-injection defense).
+5. **PR 5 — Tool use (optional, evaluate after PR 1-4 land)**
+   - Give the assessor model tools: `requestAdditionalPhoto`,
+     `suggestChecklistItems`, `recordAssessmentOutcome`.
+   - Use AI SDK's tool-loop agent.
+   - Escalation to the bigger Flash model on `needs_revision`
+     happens via a tool call.
+
+## Deferred questions (answer when the code arrives there)
+
+- **Q2. Beta track (`@ai-sdk/google@4.x-beta`)?** Defer — stay on
+  stable `3.x` until the beta features (reasoning-file,
+  embedding v2) become relevant.
+- **Q4. Thinking visibility to kids.** Defer to PR 2. First pass:
+  collapse thinking by default for everyone. Second pass: hide
+  entirely for users flagged as kids (roadmap 03).
+- **Q6. Privacy.** Defer — revisit when we implement the EU-region
+  toggle in roadmap 02.
+- **Q7. Localization of prompts.** Defer — start English-only,
+  revisit after roadmap 03's family-locale audit.
 - **Q8. Offline / self-hosted fallback.** Ollama with `llama3.1` works
   for simple yes/no assessment; worth a `nconf.get('AI_PROVIDER')`
   switch between `google` and `ollama`?
