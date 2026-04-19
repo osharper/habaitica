@@ -487,23 +487,30 @@ agentic workflow we want **one canonical path** that agents can drive.
 - `deploy-runner` agent.
 - `mobile-companion` agent after mobile repos are set up.
 
-## Open questions
+## Decisions recorded (2026-04-19)
 
-- **Q1. Workspace tool.** Use Cursor's multi-root workspace, a
-  parent-folder-of-repos, or `git worktree`? Each has tradeoffs for
-  agent indexing speed vs. context clarity.
-- **Q2. Skill format.** Follow the Cursor OSS `SKILL.md` convention
-  from `~/.cursor/skills-cursor/` I saw in the session? Or adopt
-  Anthropic's newer `skill-creator` format? They overlap but aren't
-  identical.
-- **Q3. Auto-commit scope for agents.** Do we let Tier-1 agents
-  self-commit to feature branches, or always hand back a patch for
-  human review? Recommend: auto-commit with `[agent]` prefix,
-  require human approval to merge.
-- **Q4. Gemini as the agent brain too?** We use Gemini for AI
-  assessment; we could also use it as the LLM powering some
-  subagents (cheaper). But current Cursor setup implies Claude. Pick
-  one stack per agent tier and document.
+- **Workspace tool:** parent-folder-of-repos at `~/Work/habaitica-workspace/`.
+  Simplest, plays well with Cursor's indexing, works with `git` per
+  repo without worktree quirks. [DONE — folder exists, mobile repos
+  forked & cloned]
+- **Skill format:** Anthropic's `skill-creator` / `SKILL.md` convention.
+  Skills live at `~/.claude/skills/habaitica/<name>/SKILL.md` for
+  user-scoped skills; at `habaitica/.claude/skills/<name>/SKILL.md` for
+  repo-scoped ones.
+- **Auto-commit for agents:** allowed, on branches named
+  `agent/<agent-name>/<topic>`. All changes land through PR reviewed
+  by a human. Subject format: conventional-commits with
+  `[agent:<name>]` suffix.
+- **LLM separation of concerns:** **Gemini** is used only by the
+  Habaitica app itself (task assessment and any future in-app AI).
+  **Claude** powers the coding agents via Cursor. No production
+  Gemini keys route through the coding agents.
+- **Branch protection:** `habaitica-main` is protected. PR required,
+  1 approval minimum, no force pushes, no deletions, conversation
+  resolution required. Admins not enforced (break-glass allowed).
+  [DONE]
+
+## Still-open questions
 - **Q5. Self-hosted runners.** E2E that touches Mongo + Gemini is
   slow on hosted GH runners. Invest in self-hosted runners early?
 - **Q6. Telemetry on agents themselves.** Track time-saved, error
