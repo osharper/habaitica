@@ -35,6 +35,8 @@
   "GOOGLE_CLIENT_ID": "123456789012345",
   "GOOGLE_CLIENT_SECRET": "aaaabbbbccccddddeeeeffff00001111",
   "GOOGLE_API_KEY": "",
+  "GEMINI_MODEL": "gemini-3-flash-lite",
+  "GEMINI_THINKING_LEVEL": "low",
   "IAP_GOOGLE_KEYDIR": "/path/to/google/public/key/dir/",
   "IGNORE_REDIRECT": "true",
   "ITUNES_SHARED_SECRET": "aaaabbbbccccddddeeeeffff00001111",

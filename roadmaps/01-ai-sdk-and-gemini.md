@@ -8,6 +8,15 @@ Depends on: roadmap 00 (clean branching) — we want these changes on a feature
 branch off `habaitica-main` because they touch `package.json` and the AI
 service.
 
+## Status
+
+- **PR 1 — Foundation: model upgrade + structured output** `[IN REVIEW]`
+  (branch `agent/roadmap-01/structured-output`)
+- **PR 2 — Streaming** — queued
+- **PR 3 — Multimodal attachments** — queued
+- **PR 4 — Safety + prompt-injection hardening** — queued
+- **PR 5 — Tool use (experimental)** — evaluate after 1–4 land
+
 ## What's in the code today
 
 - `website/server/libs/ai/taskAssessment.js` uses:

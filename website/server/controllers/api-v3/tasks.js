@@ -1497,23 +1497,27 @@ api.addTaskChatMessage = {
     }
     task.aiChatMessages.push(userChatMessage);
 
-    // Get AI assessment
-    const previousMessages = task.aiChatMessages.slice(0, -1); // All messages except the one we just added
+    const previousMessages = task.aiChatMessages.slice(0, -1);
     const aiResponse = await assessTaskCompletion(task, message, attachments, previousMessages);
 
-    // Add AI response to chat
-    const aiChatMessage = {
+    // Render the structured verdict as a chat message. If the model flagged
+    // specific missing evidence, append it as a bullet list so the client
+    // can show something actionable without every client needing to learn
+    // the verdict schema.
+    let assistantContent = aiResponse.rationale;
+    if (aiResponse.missingEvidence && aiResponse.missingEvidence.length > 0) {
+      assistantContent += `\n\nStill needed:\n${aiResponse.missingEvidence.map(e => `- ${e}`).join('\n')}`;
+    }
+
+    task.aiChatMessages.push({
       role: 'assistant',
-      content: aiResponse.feedback,
+      content: assistantContent,
       timestamp: new Date(),
-    };
-    task.aiChatMessages.push(aiChatMessage);
+    });
 
-    // Update task assessment status
-    task.aiAssessmentStatus = aiResponse.assessment;
+    task.aiAssessmentStatus = aiResponse.verdict;
 
-    // If approved, mark task as completed
-    if (aiResponse.assessment === 'approved' && (task.type === 'daily' || task.type === 'todo')) {
+    if (aiResponse.verdict === 'approved' && (task.type === 'daily' || task.type === 'todo')) {
       task.completed = true;
       if (task.type === 'todo') {
         task.dateCompleted = new Date();
