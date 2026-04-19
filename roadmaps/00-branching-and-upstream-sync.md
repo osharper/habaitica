@@ -95,33 +95,44 @@ Diff `a504b18ce4..upstream/develop`:
 
 ### Step-by-step consolidation plan
 
-1. **[TODO] Prep merge branch**
+**Status (2026-04-20):** First full upstream consolidation merge complete
+on branch `agent/upstream-sync/merge-5.47.6` — open as PR against
+`habaitica-main`. Four conflict files (`tasks.json` locale, `user.vue`,
+`taskModal.vue`, `libs/tasks/index.js`), all resolved as unions except the
+`res.analytics.track('team task scored', ...)` block, which was dropped
+per the analytics migration below.
+
+1. **[DONE] Prep merge branch**
    ```bash
    git fetch upstream
    git checkout -b chore/upstream-merge-5.47.6 habaitica-main
    ```
-2. **[TODO] Attempt merge**, accept ours for fork-added files, resolve
+2. **[DONE] Attempt merge**, accept ours for fork-added files, resolve
    the high-risk files manually:
    ```bash
    git merge --no-commit upstream/develop
    ```
-3. **[TODO] Analytics migration**
+3. **[DONE] Analytics migration**
    - Read `website/server/middlewares/analytics.js` after merge.
    - Replace our `res.analytics.track(...)` calls in
      `api-v3/tasks.js` (AI endpoints) and `libs/tasks/index.js`
      (reward actions) with whatever shape the Habitica-owned
      analytics service expects.
-4. **[TODO] Dependency reconciliation**
-   - Keep upstream bumps for `mongoose`, `habitica-markdown`, client deps.
-   - Layer our `ai@^6`, `@ai-sdk/google@^3.0.59` on top.
-   - Re-run `npm install` in root + `website/client` and test that the
-     `postinstall` gulp build still works.
+4. **[DONE] Dependency reconciliation**
+   - Upstream's `package.json` changes came in cleanly via the tree
+     merge; fork deps (`ai@^6`, `@ai-sdk/google@^3.0.2`) preserved.
+   - Re-ran `npm install` at repo root; lockfiles regenerated and
+     committed in a separate commit on the merge branch.
 5. **[TODO] Smoke tests** — `npm run test:api-v3:integration` and
-   `test:api-v4:integration`; run our fork-added tests (see Open Questions).
-6. **[TODO] Sprite/asset rebuild** — upstream touched sprites; run
-   `npm run sprites` and verify no regressions.
-7. **[TODO] Open PR** back into `habaitica-main` so other devs can review
-   the merge conflict resolution.
+   `test:api-v4:integration`; run our fork-added tests. Left to CI / the
+   PR reviewer since the agent session doesn't have a live MongoDB
+   replicaset.
+6. **[TODO] Sprite/asset rebuild** — `npm run sprites` not yet rerun.
+   Submodule pointer preserved (ours is newer than upstream's); running
+   sprites is only required if images actually changed in our direction.
+7. **[DONE] Open PR** back into `habaitica-main` so other devs can
+   review the merge conflict resolution.
+   ([PR link recorded in PR description](https://github.com/osharper/habaitica/pulls?q=merge-5.47.6)).
 
 ### Cadence going forward
 
