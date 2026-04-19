@@ -10,6 +10,7 @@ lists **open questions** that need a human decision before we proceed.
 | AI SDK + Gemini upgrade | Bump `ai`, `@ai-sdk/google`, switch to Gemini 3 Flash with thinking | [`01-ai-sdk-and-gemini.md`](./01-ai-sdk-and-gemini.md) |
 | Real-life rewards | Turn Habitica rewards into real-world actions (screen time, router, smart home, webhooks) | [`02-real-life-rewards.md`](./02-real-life-rewards.md) |
 | Family-centric transformation | Unlock group/party features by default, tailor the app for a household | [`03-family-centric.md`](./03-family-centric.md) |
+| Agentic development harness | Agents, skills, MCPs, memory, mobile repos, QA, deploy | [`04-agentic-development.md`](./04-agentic-development.md) |
 
 ## Conventions
 
