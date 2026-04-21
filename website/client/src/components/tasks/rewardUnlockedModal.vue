@@ -43,7 +43,10 @@
             </div>
 
             <!-- Required Tasks Info -->
-            <div v-if="reward.requiredTasks && reward.requiredTasks.length > 0" class="required-tasks-info mt-2">
+            <div
+              v-if="reward.requiredTasks && reward.requiredTasks.length > 0"
+              class="required-tasks-info mt-2"
+            >
               <div class="small text-muted">
                 <div class="svg-icon check-icon-small mr-1" v-html="icons.check"></div>
                 {{ $t('completedRequiredTasks', { count: reward.requiredTasks.length }) }}

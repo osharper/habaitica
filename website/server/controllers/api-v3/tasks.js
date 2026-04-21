@@ -1482,7 +1482,7 @@ api.addTaskChatMessage = {
     }
 
     // Import AI assessment service
-    const { assessTaskCompletion } = await import('../../libs/ai/taskAssessment.js');
+    const { assessTaskCompletion } = await import('../../libs/ai/taskAssessment');
 
     // Add user message to chat
     const userChatMessage = {

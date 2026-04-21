@@ -230,7 +230,7 @@
                       v-if="availableTask.completed"
                       class="badge badge-success ml-2"
                     >
-                      {{ $t('completed') }}
+                      {{ $t('taskCompleted') }}
                     </span>
                   </label>
                 </div>
@@ -337,7 +337,9 @@
 
                   <div class="form-group mt-3">
                     <label class="mb-2">{{ $t('exampleResponse') }}</label>
-                    <pre class="bg-dark text-light p-3 rounded small">{{ getExampleResponse() }}</pre>
+                    <pre
+                      class="bg-dark text-light p-3 rounded small"
+                    >{{ getExampleResponse() }}</pre>
                   </div>
                 </div>
               </div>
@@ -492,10 +494,10 @@
                   <div class="alert alert-secondary">
                     <strong>{{ $t('availableVariables') }}:</strong>
                     <ul class="mb-0 mt-2 small">
-                      <li><code>{{ "{{userName}}" }}</code> - {{ $t('userNameVar') }}</li>
-                      <li><code>{{ "{{userId}}" }}</code> - {{ $t('userIdVar') }}</li>
-                      <li><code>{{ "{{rewardName}}" }}</code> - {{ $t('rewardNameVar') }}</li>
-                      <li><code>{{ "{{timestamp}}" }}</code> - {{ $t('timestampVar') }}</li>
+                      <li><code v-text="'{{userName}}'"></code> - {{ $t('userNameVar') }}</li>
+                      <li><code v-text="'{{userId}}'"></code> - {{ $t('userIdVar') }}</li>
+                      <li><code v-text="'{{rewardName}}'"></code> - {{ $t('rewardNameVar') }}</li>
+                      <li><code v-text="'{{timestamp}}'"></code> - {{ $t('timestampVar') }}</li>
                     </ul>
                   </div>
                 </div>
@@ -608,7 +610,8 @@
 
               <!-- Placeholder for other action types -->
               <div
-                v-if="task.actionType && !['api_polling', 'webhook', 'client_action'].includes(task.actionType)"
+                v-if="task.actionType
+                  && !['api_polling', 'webhook', 'client_action'].includes(task.actionType)"
                 class="text-muted small mt-3"
               >
                 {{ $t('configurationComingSoon') }}
@@ -2222,7 +2225,7 @@ export default {
     },
     async testWebhook () {
       try {
-        const response = await this.$store.dispatch('tasks:testRewardWebhook', {
+        await this.$store.dispatch('tasks:testRewardWebhook', {
           rewardId: this.task._id,
           webhookConfig: this.task.actionConfig.webhook,
         });
@@ -2265,7 +2268,7 @@ export default {
         this.clientActionPayloadString = JSON.stringify(
           this.task.actionConfig.clientAction.customPayload || {},
           null,
-          2
+          2,
         );
       }
     },

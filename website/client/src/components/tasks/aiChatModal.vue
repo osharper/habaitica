@@ -44,14 +44,22 @@
         >
           <div class="message-bubble">
             <div class="message-header">
-              <div class="svg-icon message-icon" v-html="message.role === 'user' ? icons.user : icons.ai"></div>
-              <span class="message-sender">{{ message.role === 'user' ? $t('you') : $t('aiAssistant') }}</span>
+              <div
+                class="svg-icon message-icon"
+                v-html="message.role === 'user' ? icons.user : icons.ai"
+              ></div>
+              <span class="message-sender">
+                {{ message.role === 'user' ? $t('you') : $t('aiAssistant') }}
+              </span>
               <span class="message-time">{{ formatTime(message.timestamp) }}</span>
             </div>
             <div class="message-content">
               <p>{{ message.content }}</p>
               <!-- Image Attachments -->
-              <div v-if="message.attachments && message.attachments.length > 0" class="message-attachments mt-2">
+              <div
+                v-if="message.attachments && message.attachments.length > 0"
+                class="message-attachments mt-2"
+              >
                 <div
                   v-for="(attachment, attIndex) in message.attachments"
                   :key="attIndex"
@@ -695,7 +703,8 @@ export default {
       if (!this.canSendMessage) return;
 
       const message = this.newMessage.trim();
-      const attachments = this.selectedImages.map(img => img.name); // In real implementation, upload images first
+      // In real implementation, upload images first
+      const attachments = this.selectedImages.map(img => img.name);
 
       // Add user message to UI immediately
       this.messages.push({

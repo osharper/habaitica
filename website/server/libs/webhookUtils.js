@@ -1,3 +1,4 @@
+import axios from 'axios';
 import logger from './logger';
 
 // Rate limiting storage: userId -> { minute: count, day: count, lastMinuteReset, lastDayReset }
@@ -125,7 +126,6 @@ function substituteObjectVariables (obj, context) {
  * @returns {Promise<Object>} Response from webhook
  */
 export async function executeWebhook (webhookConfig, context, options = {}) {
-  const axios = require('axios');
   const { user } = context;
 
   // Check rate limit unless explicitly skipped (e.g., for testing)
@@ -148,7 +148,7 @@ export async function executeWebhook (webhookConfig, context, options = {}) {
   const headers = substituteObjectVariables(webhookConfig.headers || {}, context);
 
   // Substitute variables in body
-  let body = substituteObjectVariables(webhookConfig.body || {}, context);
+  const body = substituteObjectVariables(webhookConfig.body || {}, context);
 
   const requestConfig = {
     method: webhookConfig.method || 'POST',

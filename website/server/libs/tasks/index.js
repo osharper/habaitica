@@ -566,8 +566,8 @@ async function scoreTask (user, task, direction, req, res) {
       };
 
       // Include action details based on type
-      if (task.actionConfig.clientAction &&
-          (task.actionType === 'client_action' || task.actionType === 'multiple')) {
+      if (task.actionConfig.clientAction
+          && (task.actionType === 'client_action' || task.actionType === 'multiple')) {
         rewardAction.clientAction = {
           action: task.actionConfig.clientAction.action,
           duration: task.actionConfig.clientAction.duration,
@@ -576,13 +576,13 @@ async function scoreTask (user, task, direction, req, res) {
         };
       }
 
-      if (task.actionConfig.webhook?.enabled &&
-          (task.actionType === 'webhook' || task.actionType === 'multiple')) {
+      if (task.actionConfig.webhook?.enabled
+          && (task.actionType === 'webhook' || task.actionType === 'multiple')) {
         rewardAction.webhookStatus = 'pending';
       }
 
-      if (task.actionConfig.apiPolling?.enabled &&
-          (task.actionType === 'api_polling' || task.actionType === 'multiple')) {
+      if (task.actionConfig.apiPolling?.enabled
+          && (task.actionType === 'api_polling' || task.actionType === 'multiple')) {
         rewardAction.apiPolling = {
           enabled: true,
           endpointUrl: `/api/v4/rewards/${task._id}/purchase-status`,
@@ -590,8 +590,8 @@ async function scoreTask (user, task, direction, req, res) {
       }
 
       // Execute webhook if configured
-      if (task.actionConfig.webhook?.enabled &&
-          (task.actionType === 'webhook' || task.actionType === 'multiple')) {
+      if (task.actionConfig.webhook?.enabled
+          && (task.actionType === 'webhook' || task.actionType === 'multiple')) {
         // Execute webhook asynchronously without blocking the response
         // Wrap in try/catch to prevent errors from breaking the request
         setImmediate(async () => {
@@ -631,8 +631,8 @@ async function scoreTask (user, task, direction, req, res) {
       }
 
       // Broadcast client action via push notifications if configured
-      if (task.actionConfig.clientAction &&
-          (task.actionType === 'client_action' || task.actionType === 'multiple')) {
+      if (task.actionConfig.clientAction
+          && (task.actionType === 'client_action' || task.actionType === 'multiple')) {
         // Send push notification to all user's mobile devices asynchronously
         setImmediate(async () => {
           try {
