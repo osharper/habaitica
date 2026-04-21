@@ -12,9 +12,8 @@ service.
 
 - **PR 1 — Foundation: model upgrade + structured output** `[IN REVIEW]`
   (branch `agent/roadmap-01/structured-output`, PR #4)
-- **PR 1.5 — Provider abstraction (google | ollama | openrouter)** —
-  queued (new track per Q8 decision; must land before streaming so the
-  streaming path is provider-agnostic from day one)
+- **PR 1.5 — Provider abstraction (google | ollama | openrouter)**
+  `[IN REVIEW]` (branch `agent/roadmap-01/provider-abstraction`)
 - **PR 2 — Streaming + reasoning visibility** — queued (scope adjusted
   per Q4 decision: reasoning visible on web, collapsed on mobile apps)
 - **PR 3 — Multimodal attachments** — queued
@@ -102,9 +101,11 @@ Goal: be able to swap Gemini for OpenRouter or Ollama without touching
 the assessment logic. Ships before streaming so PR 2's streaming path
 is provider-agnostic.
 
-- [TODO] Add `@openrouter/ai-sdk-provider` and `ollama-ai-provider` to
-  `package.json` (peer-compatible with `ai@^6`).
-- [TODO] Create `website/server/libs/ai/provider.js`:
+- [DONE in PR 1.5] Added `@openrouter/ai-sdk-provider@^2.8.0` and
+  `ollama-ai-provider-v2@^3.5.0` to `package.json`. (The legacy
+  `ollama-ai-provider` at 1.2.0 only peers on ai SDK v4; the v2 fork
+  is the ai-SDK-v6-compatible package.)
+- [DONE in PR 1.5] Created `website/server/libs/ai/provider.js`:
   ```js
   export function getModel () {
     const provider = nconf.get('AI_PROVIDER') || 'google';
@@ -120,10 +121,11 @@ is provider-agnostic.
     // only google exposes thinkingConfig today; others return {}
   }
   ```
-- [TODO] Refactor `taskAssessment.js` to call `getModel()` /
+- [DONE in PR 1.5] Refactored `taskAssessment.js` to call `getModel()` /
   `getThinkingOptions()` instead of importing `@ai-sdk/google` directly.
   `AssessmentSchema` is unchanged; `generateObject` still enforces it.
-- [TODO] Document three provider recipes in `config.json.example`:
+- [DONE in PR 1.5] Documented three provider recipes in `config.json.example`
+  (`AI_PROVIDER` plus each provider's keys) and `setupNconf.js`:
   - Default: `AI_PROVIDER=google`, `GOOGLE_API_KEY=...`,
     `GEMINI_MODEL=gemini-3-flash-lite`.
   - `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY=...`,
@@ -131,11 +133,14 @@ is provider-agnostic.
     served model).
   - `AI_PROVIDER=ollama`, `OLLAMA_BASE_URL=http://localhost:11434`,
     `OLLAMA_MODEL=llama3.1:8b`.
-- [TODO] Provider-specific handling of structured output: Gemini and
-  the big OpenRouter-hosted models enforce the Zod schema reliably;
-  for smaller Ollama models, fall back to `generateText` + manual
-  `AssessmentSchema.safeParse(JSON.parse(...))` with one retry.
-- [TODO] Unit tests parallel to PR 1's, parameterized over provider.
+- [DONE in PR 1.5] Provider-specific handling of structured output:
+  Gemini and the big OpenRouter-hosted models enforce the Zod schema
+  via `generateObject`; for Ollama, when the schema step fails we fall
+  back to `generateText` + `AssessmentSchema.safeParse(JSON.parse(...))`
+  once (`_ollamaStructuredFallback`).
+- [DONE in PR 1.5] Unit tests parameterized over provider
+  (`test/api/unit/libs/ai/taskAssessment.test.js`) plus dedicated
+  provider wiring tests (`provider.test.js`). 57 specs green.
 
 ### Phase 2 — structured output (reliability win)
 
