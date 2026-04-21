@@ -435,7 +435,7 @@ export const todo = Task.discriminator('todo', TodoSchema);
 
 export const RewardSchema = new Schema({
   requiredTasks: [{
-    type: String,
+    $type: String,
     validate: [v => validator.isUUID(v), 'Invalid task UUID.'],
   }],
 

@@ -4,6 +4,10 @@ module.exports = {
   extends: [
     'habitrpg/lib/node',
   ],
+  parserOptions: {
+    ecmaVersion: 2022,
+    sourceType: 'module',
+  },
   rules: {
     'prefer-regex-literals': 'warn',
     'import/no-extraneous-dependencies': 'off',

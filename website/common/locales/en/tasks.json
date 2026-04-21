@@ -143,7 +143,7 @@
   "requiredTasksDescription": "Select tasks that must be completed before this reward can be purchased",
   "requiredTasksFor": "Required Tasks for <%= reward %>",
   "noTasksAvailable": "No tasks available",
-  "completed": "Completed",
+  "taskCompleted": "Completed",
   "rewardLocked": "Complete <%= count %> more task(s) to unlock",
   "viewRequiredTasks": "View Required Tasks",
   "incompletedTasks": "Tasks to Complete",

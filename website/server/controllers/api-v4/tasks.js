@@ -1,18 +1,12 @@
 import _ from 'lodash';
 import moment from 'moment';
 import { authWithHeaders } from '../../middlewares/auth';
-import {
-  model as Task,
-} from '../../models/task';
-import {
-  model as User,
-} from '../../models/user';
+import { Task } from '../../models/task';
 import {
   NotFound,
   BadRequest,
 } from '../../libs/errors';
 import { scoreTasks } from '../../libs/tasks';
-import getUtcOffset from '../../../common/script/fns/getUtcOffset';
 import { executeWebhook } from '../../libs/webhookUtils';
 
 const api = {};
@@ -126,7 +120,7 @@ api.getRewardPurchaseStatus = {
     }
 
     // Determine target user ID
-    let targetUserId = user._id;
+    const targetUserId = user._id;
     if (userIdParam && userIdParam !== user._id) {
       // For now, only allow checking own purchases
       throw new BadRequest('Can only check own purchase status');
@@ -137,8 +131,8 @@ api.getRewardPurchaseStatus = {
     let minutesSincePurchase = null;
 
     if (reward.lastPurchased && reward.lastPurchasedBy === targetUserId) {
-      const now = moment().utcOffset(getUtcOffset(user));
-      const lastPurchasedMoment = moment(reward.lastPurchased).utcOffset(getUtcOffset(user));
+      const now = moment().utcOffset(user.getUtcOffset());
+      const lastPurchasedMoment = moment(reward.lastPurchased).utcOffset(user.getUtcOffset());
 
       // Calculate start of today based on user's custom day start
       const startOfToday = now.clone().startOf('day').add({

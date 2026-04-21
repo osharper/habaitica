@@ -24,7 +24,11 @@
           <span class="progress-label">{{ $t('progress') }}</span>
           <span class="progress-percentage">{{ progressPercentage }}%</span>
         </div>
-        <b-progress :value="progressPercentage" :max="100" class="mb-2"></b-progress>
+        <b-progress
+          :value="progressPercentage"
+          :max="100"
+          class="mb-2"
+        />
         <p class="small text-muted">
           {{ $t('tasksCompletedCount', { completed: completedTasks.length, total: totalTasks }) }}
         </p>

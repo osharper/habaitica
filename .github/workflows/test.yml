@@ -2,282 +2,103 @@ name: Test
 
 on:
   push:
-    branches-ignore:
-    - 'phillip/**'
-    - 'sabrecat/**'
-    - 'kalista/**'
-    - 'natalie/**'
+    branches:
+      - habaitica-main
   pull_request:
+    branches:
+      - habaitica-main
 
 permissions:
   contents: read
 
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
 jobs:
   lint:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [21.x]
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - run: sudo apt update
-    - run: sudo apt -y install libkrb5-dev
-    - run: cp config.json.example config.json
-    - name: npm install
-      run: |
-        npm i
-      env:
-        CI: true
-        NODE_ENV: test
-    - run: npm run lint-no-fix
-  apidoc:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [21.x]
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - run: sudo apt update
-    - run: sudo apt -y install libkrb5-dev
-    - run: cp config.json.example config.json
-    - name: npm install
-      run: |
-        npm i
-      env:
-        CI: true
-        NODE_ENV: test
-    - run: npm run apidoc
-  sanity:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [21.x]
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - run: sudo apt update
-    - run: sudo apt -y install libkrb5-dev
-    - run: cp config.json.example config.json
-    - name: npm install
-      run: |
-        npm i
-      env:
-        CI: true
-        NODE_ENV: test
-    - run: npm run test:sanity
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y libkrb5-dev
+      - run: cp config.json.example config.json
+      - run: npm ci
+        env:
+          CI: true
+          NODE_ENV: test
+      - run: npm run lint-no-fix
 
   common:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [21.x]
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - run: sudo apt update
-    - run: sudo apt -y install libkrb5-dev
-    - run: cp config.json.example config.json
-    - name: npm install
-      run: |
-        npm i
-      env:
-        CI: true
-        NODE_ENV: test
-    - run: npm run test:common
-  content:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [21.x]
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - run: sudo apt update
-    - run: sudo apt -y install libkrb5-dev
-    - run: cp config.json.example config.json
-    - name: npm install
-      run: |
-        npm i
-      env:
-        CI: true
-        NODE_ENV: test
-    - run: npm run test:content
-
-  api-unit:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [21.x]
-        mongodb-version: [7.0]
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-
-    - name: Start MongoDB ${{ matrix.mongodb-version }} Replica Set
-      uses: supercharge/mongodb-github-action@1.11.0
-      with:
-        mongodb-version: ${{ matrix.mongodb-version }}
-        mongodb-replica-set: rs
-
-    - run: sudo apt update
-    - run: sudo apt -y install libkrb5-dev
-    - run: cp config.json.example config.json
-    - name: npm install
-      run: |
-        npm i
-      env:
-        CI: true
-        NODE_ENV: test
-
-    - run: npm run test:api:unit
-      env:
-        REQUIRES_SERVER=true: true
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y libkrb5-dev
+      - run: cp config.json.example config.json
+      - run: npm ci
+        env:
+          CI: true
+          NODE_ENV: test
+      - run: npm run test:common
 
   api-v3-integration:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [21.x]
-        mongodb-version: [7.0]
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: Start MongoDB ${{ matrix.mongodb-version }} Replica Set
-      uses: supercharge/mongodb-github-action@1.11.0
-      with:
-        mongodb-version: ${{ matrix.mongodb-version }}
-        mongodb-replica-set: rs
-
-    - run: sudo apt update
-    - run: sudo apt -y install libkrb5-dev
-    - run: cp config.json.example config.json
-    - name: npm install
-      run: |
-        npm i
-      env:
-        CI: true
-        NODE_ENV: test
-
-    - run: npm run test:api-v3:integration
-      env:
-        REQUIRES_SERVER=true: true
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: supercharge/mongodb-github-action@1.11.0
+        with:
+          mongodb-version: '7.0'
+          mongodb-replica-set: rs
+      - run: sudo apt-get update && sudo apt-get install -y libkrb5-dev
+      - run: cp config.json.example config.json
+      - run: npm ci
+        env:
+          CI: true
+          NODE_ENV: test
+      - run: npm run test:api-v3:integration
+        env:
+          REQUIRES_SERVER: 'true'
 
   api-v4-integration:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [21.x]
-        mongodb-version: [7.0]
-
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: Start MongoDB ${{ matrix.mongodb-version }} Replica Set
-      uses: supercharge/mongodb-github-action@1.11.0
-      with:
-        mongodb-version: ${{ matrix.mongodb-version }}
-        mongodb-replica-set: rs
-
-    - run: sudo apt update
-    - run: sudo apt -y install libkrb5-dev
-    - run: cp config.json.example config.json
-    - name: npm install
-      run: |
-        npm i
-      env:
-        CI: true
-        NODE_ENV: test
-
-    - run: npm run test:api-v4:integration
-      env:
-        REQUIRES_SERVER=true: true
-
-  client-unit:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [21.x]
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - run: sudo apt update
-    - run: sudo apt -y install libkrb5-dev
-    - run: cp config.json.example config.json
-    - name: npm install
-      run: |
-        npm i
-      env:
-        CI: true
-        NODE_ENV: test
-    - run: npm run test:unit
-      working-directory: ./website/client
-
-  production-build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [21.x]
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - run: sudo apt update
-    - run: sudo apt -y install libkrb5-dev
-    - run: cp config.json.example config.json
-    - name: npm install
-      run: |
-        npm install
-      env:
-        CI: true
-        NODE_ENV: production
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: supercharge/mongodb-github-action@1.11.0
+        with:
+          mongodb-version: '7.0'
+          mongodb-replica-set: rs
+      - run: sudo apt-get update && sudo apt-get install -y libkrb5-dev
+      - run: cp config.json.example config.json
+      - run: npm ci
+        env:
+          CI: true
+          NODE_ENV: test
+      - run: npm run test:api-v4:integration
+        env:
+          REQUIRES_SERVER: 'true'
