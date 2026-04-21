@@ -1,22 +1,30 @@
-/* eslint-disable import/no-commonjs */
+/* eslint-disable import/no-commonjs, import/order */
 // Minimal bootstrap for pure unit tests that don't need mongoose/server wiring.
 // Sets up global chai/sinon helpers (mirroring test/helpers/globals.helper.js)
 // and nconf with the example config, nothing else.
+//
+// @babel/register must be installed BEFORE requiring any repo source file,
+// because they use ES module syntax that Node can't parse natively.
+
+require('@babel/register');
 
 const nconf = require('nconf');
 const setupNconf = require('../../website/server/libs/setupNconf').default;
 
-require('@babel/register');
+const lodash = require('lodash');
+const chai = require('chai');
+const chaiAsPromised = require('chai-as-promised');
+const sinonChai = require('sinon-chai');
+const sinon = require('sinon');
 
-global._ = require('lodash');
-global.chai = require('chai');
-global.chai.use(require('chai-as-promised'));
-global.chai.use(require('sinon-chai'));
+chai.use(chaiAsPromised);
+chai.use(sinonChai);
 
-global.expect = global.chai.expect;
-global.sinon = require('sinon');
-
-global.sandbox = global.sinon.createSandbox();
+global._ = lodash;
+global.chai = chai;
+global.expect = chai.expect;
+global.sinon = sinon;
+global.sandbox = sinon.createSandbox();
 
 setupNconf('./config.json.example');
 nconf.set('NODE_ENV', 'test');

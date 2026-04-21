@@ -1500,12 +1500,16 @@ api.addTaskChatMessage = {
     const previousMessages = task.aiChatMessages.slice(0, -1);
     const aiResponse = await assessTaskCompletion(task, message, attachments, previousMessages);
 
-    // Render the structured verdict as a chat message. If the model flagged
-    // specific missing evidence, append it as a bullet list so the client
-    // can show something actionable without every client needing to learn
-    // the verdict schema.
+    // Render the structured verdict as a chat message. On `needs_revision`
+    // verdicts, append any missing-evidence items as a bullet list so the
+    // client can show something actionable without every client needing
+    // to learn the verdict schema. Other verdicts get the rationale only.
     let assistantContent = aiResponse.rationale;
-    if (aiResponse.missingEvidence && aiResponse.missingEvidence.length > 0) {
+    if (
+      aiResponse.verdict === 'needs_revision'
+      && aiResponse.missingEvidence
+      && aiResponse.missingEvidence.length > 0
+    ) {
       assistantContent += `\n\nStill needed:\n${aiResponse.missingEvidence.map(e => `- ${e}`).join('\n')}`;
     }
 
